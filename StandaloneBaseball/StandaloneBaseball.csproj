@@ -55,8 +55,14 @@
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
 
-    <!-- This user-approved trophy template is the only bitmap intentionally shipped in both distributions. -->
+    <!-- These user-approved assets intentionally ship in both distributions. -->
     <None Update="Assets\Trophies\baseball-mvp-trophy-template.jpg"
+          Condition="'$(DistributionChannel)' == 'Public'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+    <None Update="Assets\Loading Screens\season_opening_baseball_is_back.jpg;Assets\Loading Screens\season_opening_danville50.png;Assets\Loading Screens\doubleheader_game_two.jpg"
           Condition="'$(DistributionChannel)' == 'Public'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

@@ -402,6 +402,8 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - Three-game series use the normal weekend structure.
 - Four-game series use Friday, Saturday, and a Sunday doubleheader.
 - Larger series add back-end doubleheaders up to six games.
+- Game 2 of a scheduled doubleheader displays `doubleheader_game_two.jpg` for five seconds before the normal pregame sequence.
+- The first scheduled game of every season begins with `season_opening_baseball_is_back.jpg` for three seconds and `season_opening_danville50.png` for three seconds before the normal pregame sequence.
 - Users can play, watch, sim one game, or sim larger schedule ranges.
 
 ## Playoffs

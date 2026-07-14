@@ -133,7 +133,10 @@ try {
         ".mp4", ".avi", ".wmv", ".mov"
     )
     $approvedPublicMedia = @(
-        "Assets/Trophies/baseball-mvp-trophy-template.jpg"
+        "Assets/Trophies/baseball-mvp-trophy-template.jpg",
+        "Assets/Loading Screens/season_opening_baseball_is_back.jpg",
+        "Assets/Loading Screens/season_opening_danville50.png",
+        "Assets/Loading Screens/doubleheader_game_two.jpg"
     )
     $publishedMedia = @(Get-ChildItem -LiteralPath (Join-Path $publishPath "Assets") -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object {
@@ -153,7 +156,10 @@ try {
         "Assets\Data\schools.csv",
         "Assets\Replay Templates\ReplayTemplate.rbi-replay.json",
         "Assets\Templates\Lineup Card Template.docx",
-        "Assets\Trophies\baseball-mvp-trophy-template.jpg"
+        "Assets\Trophies\baseball-mvp-trophy-template.jpg",
+        "Assets\Loading Screens\season_opening_baseball_is_back.jpg",
+        "Assets\Loading Screens\season_opening_danville50.png",
+        "Assets\Loading Screens\doubleheader_game_two.jpg"
     )
     $missing = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $publishPath $_)) })
     if ($missing.Count -gt 0) {

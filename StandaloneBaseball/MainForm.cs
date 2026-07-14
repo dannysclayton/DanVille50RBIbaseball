@@ -7865,6 +7865,8 @@ namespace StandaloneBaseball
             state.FieldPresetId = SelectedFieldPreset().Id;
             state.AwayUniformSetId = awayUniform?.Id;
             state.HomeUniformSetId = homeUniform?.Id;
+            ShowSeasonOpeningInterstitials(season, scheduled);
+            ShowSecondDoubleheaderGameInterstitial(season, scheduled);
             TriggerCutscene(IsPlayoffGameForCutscene(away, home) ? CutsceneTrigger.PlayoffGameStart : CutsceneTrigger.GameStart, home, away, homeUniform?.Category, awayUniform?.Category);
             ShowGameLoadingScreen(away, home, mode);
             using var game = new GameplayForm(away, home, RankingModifierForGame(season, away, home));
@@ -7903,6 +7905,33 @@ namespace StandaloneBaseball
 
         private bool SelectedPvpAwayUsesKeyboard()
             => !((_pvpInputCombo?.SelectedItem as PvpInputAssignmentItem)?.AwayUsesKeyboard == false);
+
+        private void ShowSeasonOpeningInterstitials(Season? season, ScheduledGame? scheduled)
+        {
+            if (!SeasonOpeningInterstitialRules.IsFirstScheduledGame(season, scheduled))
+                return;
+
+            ShowTimedInterstitialAsset("season_opening_baseball_is_back.jpg", 3000);
+            ShowTimedInterstitialAsset("season_opening_danville50.png", 3000);
+        }
+
+        private void ShowSecondDoubleheaderGameInterstitial(Season? season, ScheduledGame? scheduled)
+        {
+            if (!DoubleheaderInterstitialRules.IsSecondGameOfDoubleheader(season, scheduled))
+                return;
+
+            ShowTimedInterstitialAsset("doubleheader_game_two.jpg", 5000);
+        }
+
+        private void ShowTimedInterstitialAsset(string fileName, int durationMilliseconds)
+        {
+            string imagePath = Path.Combine(AppContext.BaseDirectory, "Assets", "Loading Screens", fileName);
+            if (File.Exists(imagePath))
+            {
+                using var interstitial = new TimedImageInterstitialForm(imagePath, durationMilliseconds);
+                interstitial.ShowDialog(this);
+            }
+        }
 
         private string PlayerVsPlayerInputLabel(Team away, Team home)
         {

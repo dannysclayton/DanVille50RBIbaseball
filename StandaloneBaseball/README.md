@@ -31,6 +31,8 @@ Dynasties use a Conference -> Region -> District model. Conferences are user-con
 
 Schedules are generated when the dynasty is created. Users can set district, region, conference, and non-conference home/away counts, plus series length. Schedules are grouped by week and played in order. Users can play, watch, simulate a game, or simulate larger schedule blocks.
 
+The first scheduled game of every season displays the packaged "Baseball Is Back" image for three seconds and then the DanVille 50 logo for three seconds before normal pregame loading. Game 2 of a scheduled doubleheader displays the "Baseball Is Back" image for five seconds before that game's normal pregame sequence.
+
 Playoffs include district champions, runners-up, and wild cards. Round names scale from Bi-District and Area through Regional, Conference, Semi-Finals, and World Series depending on bracket size.
 
 ## Gameplay

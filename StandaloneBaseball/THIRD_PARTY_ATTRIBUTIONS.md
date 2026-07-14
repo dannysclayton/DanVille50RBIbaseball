@@ -12,6 +12,21 @@ The Local-only Version 2.0 package retains these files unchanged. Public Version
 1.0 excludes the uncleared media and uses the fallbacks described in
 `MEDIA_LICENSE_RECOMMENDATIONS.md`.
 
+## User-Created Approved Public Artwork
+
+The project owner, Danny Clayton, states that he created and explicitly approves
+redistribution of the following supplied artwork in both Local Version 2.0 and
+Public Version 1.0:
+
+| Packaged file | Game use |
+| --- | --- |
+| `Assets/Loading Screens/season_opening_baseball_is_back.jpg` | First season game, opening screen 1 |
+| `Assets/Loading Screens/season_opening_danville50.png` | First season game, opening screen 2 |
+| `Assets/Loading Screens/doubleheader_game_two.jpg` | Doubleheader Game 2 interstitial |
+
+The first and third packaged files are semantic copies of the same owner-created
+`Logo.jpg` source image.
+
 ## Identified Music and Themes
 
 The packaged recording or ringtone version is not fully identified unless stated.

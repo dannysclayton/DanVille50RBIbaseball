@@ -1,0 +1,337 @@
+{
+  "_template_instructions": "Replace the example IDs, teams, players, states, events, paths, scores, and timing with the game being replayed. Keep IDs stable and times in milliseconds. Duplicate the event object for every recorded game action. Relative asset paths are resolved from the imported replay file. See ExactReplaySchema.md for every supported field.",
+  "replay_schema_version": 2,
+  "source": "user-created",
+  "source_version": "1.0",
+  "exported_at": "2026-07-13T00:00:00-05:00",
+  "deterministic": true,
+  "game": {
+    "innings": 9,
+    "game_id": "example-game-1",
+    "season_id": "example-season-1",
+    "season_number": 1,
+    "scheduled_game_id": "",
+    "game_type": "exhibition",
+    "playoff_round_name": "",
+    "stadium_id": "",
+    "stadium_name": "Example Ballpark",
+    "date_played": "2026-07-13",
+    "final_score": { "away": 0, "home": 0 },
+    "line_score": {
+      "away_runs_by_inning": [0],
+      "home_runs_by_inning": [0],
+      "away_hits": 1,
+      "home_hits": 0,
+      "away_errors": 0,
+      "home_errors": 0,
+      "away_left_on_base": 1,
+      "home_left_on_base": 0
+    },
+    "winner_team_id": ""
+  },
+  "rules": {
+    "mercy_rule_enabled": true,
+    "mercy_rule_runs": 10,
+    "mercy_rule_minimum_inning": 5,
+    "extra_innings_enabled": true,
+    "extra_inning_runner_on_second": true,
+    "courtesy_runner_for_pitchers_catchers": true,
+    "designated_hitter_enabled": true,
+    "automatic_intentional_walk": true,
+    "pitcher_fatigue_enabled": true,
+    "injuries_enabled": true,
+    "balks_enabled": true,
+    "wild_pitches_passed_balls_enabled": true
+  },
+  "teams": {
+    "away": {
+      "team_id": "away-team-id",
+      "team_name": "Visiting School",
+      "mascot": "Visitors",
+      "scoreboard_abbreviation": "VIS",
+      "logo_path": "",
+      "primary_color": "#163B8F",
+      "secondary_color": "#FFFFFF",
+      "uniform_key": "visitor",
+      "record_before_game": { "wins": 0, "losses": 0, "ties": 0 },
+      "score": 0,
+      "hits": 1,
+      "errors": 0,
+      "runs_by_inning": [0],
+      "lineup": [
+        {
+          "order": 1,
+          "position": "CF",
+          "player": {
+            "player_id": "away-batter-1",
+            "name": "Example Batter",
+            "number": 1,
+            "team_id": "away-team-id",
+            "position": "CF",
+            "eligible_positions": ["CF"],
+            "classification": "Senior",
+            "player_type": "position",
+            "handedness": "R",
+            "bats": "R",
+            "throws": "R"
+          }
+        }
+      ],
+      "bench": [],
+      "pitching_staff": []
+    },
+    "home": {
+      "team_id": "home-team-id",
+      "team_name": "Home School",
+      "mascot": "Hosts",
+      "scoreboard_abbreviation": "HME",
+      "logo_path": "",
+      "primary_color": "#B00020",
+      "secondary_color": "#FFFFFF",
+      "uniform_key": "home",
+      "record_before_game": { "wins": 0, "losses": 0, "ties": 0 },
+      "score": 0,
+      "hits": 0,
+      "errors": 0,
+      "runs_by_inning": [0],
+      "lineup": [],
+      "bench": [],
+      "pitching_staff": [
+        {
+          "player_id": "home-pitcher-1",
+          "name": "Example Pitcher",
+          "number": 10,
+          "team_id": "home-team-id",
+          "position": "P",
+          "eligible_positions": ["P"],
+          "classification": "Senior",
+          "player_type": "pitcher",
+          "handedness": "R",
+          "bats": "R",
+          "throws": "R"
+        }
+      ]
+    }
+  },
+  "assets": {
+    "stadium_background": "",
+    "scoreboard_template": "",
+    "national_anthem_image": "",
+    "audio": {},
+    "cutscenes": {}
+  },
+  "starting_state": {
+    "time_ms": 1000,
+    "inning": 1,
+    "half": "top",
+    "outs": 0,
+    "balls": 0,
+    "strikes": 0,
+    "score": { "away": 0, "home": 0 },
+    "bases": { "first": null, "second": null, "third": null },
+    "current_batter_id": "away-batter-1",
+    "current_pitcher_id": "home-pitcher-1",
+    "away_batter_index": 0,
+    "home_batter_index": 0,
+    "away_pitcher_index": 0,
+    "home_pitcher_index": 0,
+    "dh_state": {
+      "away_dh_active": true,
+      "home_dh_active": true,
+      "away_dh_player_id": "",
+      "home_dh_player_id": ""
+    },
+    "live_rules": {
+      "away_starter_pitch_count": 0,
+      "home_starter_pitch_count": 0,
+      "away_mound_visits_this_inning": 0,
+      "home_mound_visits_this_inning": 0,
+      "pitchers_removed_by_run_rule": [],
+      "relief_pitcher_fatigue": {},
+      "pitcher_run_rules": {}
+    },
+    "fielders": []
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "event_id": "example-game-1-event-000001",
+      "event_type": "pitch",
+      "time_ms": 1000,
+      "duration_ms": 1000,
+      "description": "Example batter singles to center field.",
+      "inning": 1,
+      "half": "top",
+      "outs": 0,
+      "score": { "away": 0, "home": 0 },
+      "bases": { "first": null, "second": null, "third": null },
+      "runs_scored_on_play": 0,
+      "runners_advanced": ["away-batter-1"],
+      "offensive_choice": "normal",
+      "defensive_choice": "normal",
+      "before": {
+        "time_ms": 1000,
+        "inning": 1,
+        "half": "top",
+        "outs": 0,
+        "balls": 0,
+        "strikes": 0,
+        "score": { "away": 0, "home": 0 },
+        "bases": { "first": null, "second": null, "third": null },
+        "current_batter_id": "away-batter-1",
+        "current_pitcher_id": "home-pitcher-1",
+        "away_batter_index": 0,
+        "home_batter_index": 0,
+        "away_pitcher_index": 0,
+        "home_pitcher_index": 0,
+        "dh_state": { "away_dh_active": true, "home_dh_active": true, "away_dh_player_id": "", "home_dh_player_id": "" },
+        "live_rules": {},
+        "fielders": []
+      },
+      "command": {
+        "pitch": {
+          "pitch_number": 1,
+          "pitcher_id": "home-pitcher-1",
+          "batter_id": "away-batter-1",
+          "pitch_type": "Fastball",
+          "pitch_effectiveness": 70,
+          "target_location": { "zone_x": 0.5, "zone_y": 0.5 },
+          "actual_location": { "zone_x": 0.52, "zone_y": 0.48 },
+          "velocity_mph": 90,
+          "spin_rpm": 2200,
+          "break": { "x": 0.0, "y": 0.0 },
+          "release_time_ms": 1000,
+          "plate_time_ms": 1450,
+          "called_zone": "middle",
+          "pitcher_fatigue_adjustment_percent": 0
+        },
+        "batter_input": {
+          "swing": true,
+          "swing_type": "normal",
+          "timing": "good",
+          "timing_offset_ms": 0,
+          "aim": { "zone_x": 0.5, "zone_y": 0.5 },
+          "contact_quality": 75
+        },
+        "strategy": {
+          "offense": "normal",
+          "defense": "normal",
+          "steal_defense": "normal",
+          "coach_call_quality": "correct"
+        },
+        "team_id": "home-team-id",
+        "substitution_type": "",
+        "out_player_id": "",
+        "in_player_id": "",
+        "batting_order_slot": 0,
+        "defensive_position": "",
+        "dh_lost": false,
+        "reason": ""
+      },
+      "animation": {
+        "camera": { "view": "gameplay", "start_zoom": 1.0, "end_zoom": 1.0, "shake": false },
+        "ball_path": [
+          { "time_ms": 1000, "x": 0.50, "y": 0.72, "z": 0.10, "visible": true },
+          { "time_ms": 1450, "x": 0.50, "y": 0.60, "z": 0.05, "visible": true },
+          { "time_ms": 2000, "x": 0.50, "y": 0.35, "z": 0.20, "visible": true }
+        ],
+        "fielder_paths": [],
+        "runner_paths": [
+          {
+            "player_id": "away-batter-1",
+            "position": "B",
+            "from_base": 0,
+            "to_base": 1,
+            "safe": true,
+            "path": [
+              { "time_ms": 1450, "x": 0.50, "y": 0.80, "z": 0.0, "visible": true },
+              { "time_ms": 2000, "x": 0.64, "y": 0.66, "z": 0.0, "visible": true }
+            ]
+          }
+        ],
+        "throws": [],
+        "highlight_player_ids": ["away-batter-1"],
+        "scoreboard_updates_at_ms": [2000]
+      },
+      "audio": [],
+      "cutscenes": [],
+      "runner_advancements": [
+        {
+          "player_id": "away-batter-1",
+          "from_base": 0,
+          "to_base": 1,
+          "scored": false,
+          "out": false,
+          "safe": true,
+          "reason": "single",
+          "responsible_pitcher_id": "home-pitcher-1",
+          "earned": true
+        }
+      ],
+      "after": {
+        "time_ms": 2000,
+        "inning": 1,
+        "half": "top",
+        "outs": 0,
+        "balls": 0,
+        "strikes": 0,
+        "score": { "away": 0, "home": 0 },
+        "bases": {
+          "first": { "player_id": "away-batter-1", "responsible_pitcher_id": "home-pitcher-1", "earned": true },
+          "second": null,
+          "third": null
+        },
+        "current_batter_id": "away-batter-1",
+        "current_pitcher_id": "home-pitcher-1",
+        "away_batter_index": 1,
+        "home_batter_index": 0,
+        "away_pitcher_index": 0,
+        "home_pitcher_index": 0,
+        "dh_state": { "away_dh_active": true, "home_dh_active": true, "away_dh_player_id": "", "home_dh_player_id": "" },
+        "live_rules": { "home_starter_pitch_count": 1 },
+        "fielders": []
+      },
+      "validation": {
+        "state_hash_before": "",
+        "state_hash_after": "",
+        "score_after": { "away": 0, "home": 0 },
+        "outs_after": 0,
+        "bases_after": { "first_player_id": "away-batter-1", "second_player_id": "", "third_player_id": "" },
+        "pitch_count_after": { "home-pitcher-1": 1 }
+      }
+    }
+  ],
+  "final_state": {
+    "time_ms": 2000,
+    "inning": 1,
+    "half": "top",
+    "outs": 0,
+    "balls": 0,
+    "strikes": 0,
+    "score": { "away": 0, "home": 0 },
+    "bases": {
+      "first": { "player_id": "away-batter-1", "responsible_pitcher_id": "home-pitcher-1", "earned": true },
+      "second": null,
+      "third": null
+    },
+    "current_batter_id": "away-batter-1",
+    "current_pitcher_id": "home-pitcher-1",
+    "away_batter_index": 1,
+    "home_batter_index": 0,
+    "away_pitcher_index": 0,
+    "home_pitcher_index": 0,
+    "dh_state": { "away_dh_active": true, "home_dh_active": true, "away_dh_player_id": "", "home_dh_player_id": "" },
+    "live_rules": { "home_starter_pitch_count": 1 },
+    "fielders": []
+  },
+  "validation": {
+    "state_hash_before": "",
+    "state_hash_after": "",
+    "score_after": { "away": 0, "home": 0 },
+    "outs_after": 0,
+    "bases_after": { "first_player_id": "away-batter-1", "second_player_id": "", "third_player_id": "" },
+    "pitch_count_after": { "home-pitcher-1": 1 }
+  },
+  "play_log": ["Example batter singles to center field."],
+  "detailed_play_log": ["Top 1st, 0 outs: Example batter singles to center field."]
+}

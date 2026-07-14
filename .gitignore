@@ -1,0 +1,33 @@
+# Build output
+**/bin/
+**/obj/
+**/TestResults/
+artifacts/
+release/local-v2.0/
+.vs/
+
+# User and machine-specific files
+*.user
+*.suo
+*.tmp
+*.log
+*.sim
+*.rbi-save
+*.rbi-replay
+!StandaloneBaseball/Assets/Replay Templates/ReplayTemplate.rbi-replay.json
+!release/public-v1.0/Assets/Replay Templates/ReplayTemplate.rbi-replay.json
+
+# Public repository media policy
+*.mp3
+*.wav
+*.wma
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
+*.dib
+*.mp4
+*.avi
+*.wmv
+*.mov

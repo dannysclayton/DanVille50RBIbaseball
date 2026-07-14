@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StandaloneBaseball", "StandaloneBaseball\StandaloneBaseball.csproj", "{6D763012-9ECF-4BA1-B3F9-5902DAF4EF2D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StandaloneBaseball.Tests", "StandaloneBaseball.Tests\StandaloneBaseball.Tests.csproj", "{79F667EE-B368-4CC1-987C-A4043B7F2699}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6D763012-9ECF-4BA1-B3F9-5902DAF4EF2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D763012-9ECF-4BA1-B3F9-5902DAF4EF2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D763012-9ECF-4BA1-B3F9-5902DAF4EF2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D763012-9ECF-4BA1-B3F9-5902DAF4EF2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79F667EE-B368-4CC1-987C-A4043B7F2699}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79F667EE-B368-4CC1-987C-A4043B7F2699}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79F667EE-B368-4CC1-987C-A4043B7F2699}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79F667EE-B368-4CC1-987C-A4043B7F2699}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

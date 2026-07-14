@@ -121,7 +121,9 @@ namespace StandaloneBaseball
                     ExtraInningRunnerOnSecond = _rules.ExtraInningRunnerOnSecond,
                     MercyRuleEnabled = _rules.MercyRuleEnabled,
                     MercyRuleRuns = _rules.MercyRuleRuns,
-                    MercyRuleMinimumInning = _rules.MercyRuleMinimumInning
+                    MercyRuleMinimumInning = _rules.MercyRuleMinimumInning,
+                    AwayStartingLineup = LineupEngine.CaptureStartingLineup(away),
+                    HomeStartingLineup = LineupEngine.CaptureStartingLineup(home)
                 };
             }
 
@@ -1190,6 +1192,13 @@ namespace StandaloneBaseball
                     _homePitcher = next;
                 else
                     _awayPitcher = next;
+                GameLineupTracker.RecordPitcherChange(
+                    DefenseTeam.Id == _away.Id ? _result.AwayStartingLineup : _result.HomeStartingLineup,
+                    next.Player,
+                    pitcher.Player,
+                    _inning,
+                    _topHalf ? HalfInning.Top : HalfInning.Bottom,
+                    reason: "Simulation pitcher change");
             }
 
             private PitcherUse? NextPitcher(Team team, List<Player> staff, PitcherUse current)

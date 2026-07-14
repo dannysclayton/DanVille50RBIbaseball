@@ -67,6 +67,7 @@ public sealed class MainFormWorkflowTests
             List<Control> controls = Descendants(form).ToList();
 
             Assert.Contains(controls.OfType<Button>(), button => button.Text == "Team Trophies...");
+            Assert.Contains(controls.OfType<Button>(), button => button.Text == "Lineup Cards...");
             Assert.Contains(controls.OfType<Button>(), button => button.Text == "Player Trophies...");
             Assert.Equal(2, controls.OfType<TabPage>().Count(page => page.Text == "Trophies"));
             Assert.Equal(2, controls.OfType<TrophyGalleryControl>().Count());

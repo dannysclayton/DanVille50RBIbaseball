@@ -13,7 +13,7 @@ For the complete feature inventory, see [Feautures.md](Feautures.md).
 - Standalone league saves using readable `.dbaseball.json` files.
 - Portable team assets stored beside each league save in `[league].assets`.
 - Launch, loading, menu, lineup, national anthem, gameplay, postgame, and championship presentation screens.
-- Full team editor with logos, photos, colors, music, fields, coaches, rosters, uniforms, cutscenes, badges, and exported pages.
+- Full team editor with logos, photos, colors, music, fields, coaches, rosters, uniforms, cutscenes, badges, and exported pages, including team-specific or league-wide lineup cards with embedded team logos.
 - Saved `Assets\Data\schools.csv` source file for school-based team creation, with a menu option to update it from newer CSV versions.
 - 30-player varsity rosters with JV pool support, redshirts, medical tags, injured reserve, player avatars, sprites, uniforms, classifications, and progression.
 - Shared lineup, rotation, pitching, strategy, fielding, baserunning, injury, and game-resolution systems for user games and simulations.
@@ -23,6 +23,7 @@ For the complete feature inventory, see [Feautures.md](Feautures.md).
 - Conference, Region, and District structure with rankings, playoff qualification, seeding, series formats, championship handling, and badges.
 - Season, career, playoff, all-star, hierarchy, team, player, coach, Hall of Fame, and records tracking, including complete batting, pitching, fielding, catcher, and availability statistics.
 - A per-user Replay Library imports replay JSON into application-managed storage, lists playback quality, and supports watch, remove, and open-folder actions without developer-machine paths.
+- A Season Game Library stores native Word lineup and full game-result forms under both participating teams, including substitutions, position changes, box scores, decisions, player statistics, and inning-by-inning play-by-play. Forms can be saved for one team, selected teams, or league-wide.
 
 ## Game Structure
 

@@ -81,6 +81,8 @@ namespace StandaloneBaseball
         public List<Guid> RemovedPlayerIds { get; set; } = new List<Guid>();
         public List<Guid> AwayLineupPlayerIds { get; set; } = new List<Guid>();
         public List<Guid> HomeLineupPlayerIds { get; set; } = new List<Guid>();
+        public List<GameLineupEntry> AwayStartingLineup { get; set; } = new List<GameLineupEntry>();
+        public List<GameLineupEntry> HomeStartingLineup { get; set; } = new List<GameLineupEntry>();
         public Guid? AwayDesignatedHitterId { get; set; }
         public Guid? HomeDesignatedHitterId { get; set; }
         public bool AwayDhActive { get; set; }
@@ -173,7 +175,9 @@ namespace StandaloneBaseball
                 AwayTeamId = AwayTeam?.Id ?? Guid.Empty,
                 HomeTeamId = HomeTeam?.Id ?? Guid.Empty,
                 AwayScore = AwayScore,
-                HomeScore = HomeScore
+                HomeScore = HomeScore,
+                AwayStartingLineup = AwayStartingLineup?.ToList() ?? new List<GameLineupEntry>(),
+                HomeStartingLineup = HomeStartingLineup?.ToList() ?? new List<GameLineupEntry>()
             };
         }
 
@@ -190,6 +194,8 @@ namespace StandaloneBaseball
         {
             ApplyLineupCard(AwayTeam, AwayLineupPlayerIds, away: true);
             ApplyLineupCard(HomeTeam, HomeLineupPlayerIds, away: false);
+            AwayStartingLineup = LineupEngine.CaptureStartingLineup(AwayTeam);
+            HomeStartingLineup = LineupEngine.CaptureStartingLineup(HomeTeam);
         }
 
         public IReadOnlyList<Player> GetBattingOrder(Team team)

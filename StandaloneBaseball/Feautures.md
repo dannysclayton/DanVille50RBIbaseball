@@ -164,6 +164,13 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - Base lineups are saved to each team folder and are editable.
 - Lineups only change automatically for injuries, redshirts, roster changes, or user edits.
 - All-Star teams use the same lineup system.
+- The Teams page can export a lineup card for one team, any selected teams, or the entire league.
+- Lineup-card Word documents use each team's saved starters, defensive roles, team colors, and current team logo.
+- Completed-game lineup forms include every player who appeared, so pitching changes and other replacements can expand the card beyond nine players.
+- Participation cards retain inherited batting-order slots, replaced-player names, entry and exit innings, DH status, and inning-specific position changes.
+- The Season Game Library can save lineup forms for one team, any selected teams, or the entire league.
+- Team logos are embedded into each generated card so exported documents remain portable.
+- A blank lineup-card Word template is packaged with both editions and can also be saved from the lineup-card dialog.
 
 ## Defensive Position Flexibility
 
@@ -708,6 +715,9 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - Results dialog shows the winning team's logo.
 - Results dialog shows the updated win-loss record.
 - Results dialog includes a box score recap.
+- Every dynasty save updates each participating team's `Line Up` and `Game Results` asset folders with native Word documents for committed games.
+- Completed-game reports include updated records at that point in the season, inning line scores, runs/hits/errors/LOB, pitcher decisions, saves, holds, player of the game, full offensive/pitching/defensive lines, and inning-grouped play-by-play.
+- The Season Game Library can export lineup forms, game-result forms, or both for one team, selected teams, or league-wide; users can limit exports to selected games or use every displayed game.
 - User can commit the result to the selected scheduled game/season.
 - User can dismiss the result.
 - Postgame music loops until commit or dismiss.
@@ -778,7 +788,10 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 
 ## Imports and External Libraries
 
-- An optional shared audio, image, and video library can be selected or created during dynasty setup and changed later in Settings; new libraries receive Audio, Images, Video, and Teams folders, fresh installations leave the path unconfigured until the user chooses one, and assigned assets are copied into portable league/team asset folders.
+- An optional shared audio, image, and video library can be selected or created during dynasty setup and changed later in Settings; new libraries receive Audio, Images, Video, and Teams folders, public installations leave the path unconfigured until the user chooses one, and assigned assets are copied into portable league/team asset folders.
+- Local-only Version 2.0 links `Assets\audio,Image and video Library` to the configured DanVille library with a Windows directory junction. Changes made in the source library are therefore visible immediately through the local game's `Assets` folder without duplicating the library.
+- Local-only Version 2.0 hard-links `Assets\Data\schools.csv` to the configured computer catalog, so external edits and in-game catalog/logo updates operate on the same file.
+- Local-only Version 2.0 adds **Teams > Edit Schools CSV in PyCharm**, which opens the linked catalog in the configured PyCharm 2025.2.2 installation. This machine-specific command and its paths are absent from Public Version 1.0.
 - Imported team assets are copied into team folders for publishable leagues.
 - Roster spreadsheet importer supports `.xlsx` roster files where available.
 - Schools CSV importer supports creating teams from the saved app copy at `Assets\Data\schools.csv`.
@@ -789,6 +802,7 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 
 - Stat pages can be exported.
 - Team pages can be exported.
+- Team-specific, selected-team, and league-wide lineup cards can be exported as native Word documents.
 - Polls can be exported individually or together.
 - Hall of Fame can be exported.
 - Team Hall of Fame page can be exported.

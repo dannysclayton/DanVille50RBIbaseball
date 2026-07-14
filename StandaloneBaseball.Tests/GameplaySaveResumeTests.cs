@@ -46,6 +46,7 @@ public sealed class GameplaySaveResumeTests
         Assert.Equal(2, snapshot.CompletedHalfInnings.Count);
         Assert.Equal(2, snapshot.PlayByPlay.Count);
         Assert.Equal("Home run scored.", snapshot.PlayByPlay[1].Description);
+        Assert.Contains(snapshot.AwayStartingLineup, entry => !entry.IsStarter && entry.PositionHistory.Any(change => change.Position == "1B"));
         AssertLiveRules(source.LiveRules, snapshot.LiveRules);
     }
 
@@ -86,6 +87,7 @@ public sealed class GameplaySaveResumeTests
             Assert.Equal(2, restored.CompletedHalfInnings.Count);
             Assert.Equal(2, restored.PlayByPlay.Count);
             Assert.Equal("1B, 3B", restored.PlayByPlay[1].Bases);
+            Assert.Contains(restored.AwayStartingLineup, entry => !entry.IsStarter && entry.PositionHistory.Any(change => change.Position == "1B"));
             AssertLiveRules(league.InProgressGames[0].State.LiveRules, restored.LiveRules);
         }
         finally
@@ -147,6 +149,10 @@ public sealed class GameplaySaveResumeTests
             Bases = "1B, 3B",
             Description = "Home run scored."
         });
+        Player awayStarter = away.Roster.First(player => player.Id == away.BaseLineup.StartingPitcherId);
+        Player awayReliever = away.Roster.First(player => player.Role == PlayerRole.Pitcher && player.Id != awayStarter.Id);
+        GameLineupTracker.RecordPitcherChange(state.AwayStartingLineup, awayReliever, awayStarter, 2, HalfInning.Top, reason: "Saved pitching change");
+        GameLineupTracker.RecordPositionChange(state.AwayStartingLineup, awayReliever, 2, HalfInning.Bottom, "1B", "Saved position change");
         Guid awayPitcherId = away.Roster.First(player => player.Role == PlayerRole.Pitcher).Id;
         Guid homePitcherId = home.Roster.First(player => player.Role == PlayerRole.Pitcher).Id;
         state.LiveRules = new GameplayLiveRulesState
@@ -224,6 +230,7 @@ public sealed class GameplaySaveResumeTests
     {
         var team = new Team { City = name, Nickname = "Club" };
         team.Roster.Add(Pitcher(name + " Pitcher"));
+        team.Roster.Add(Pitcher(name + " Reliever"));
         team.Roster.Add(Hitter(name + " Catcher", "C"));
         team.Roster.Add(Hitter(name + " First", "1B"));
         team.Roster.Add(Hitter(name + " Second", "2B"));
@@ -232,6 +239,8 @@ public sealed class GameplaySaveResumeTests
         team.Roster.Add(Hitter(name + " Left", "LF"));
         team.Roster.Add(Hitter(name + " Center", "CF"));
         team.Roster.Add(Hitter(name + " Right", "RF"));
+        team.Roster.Add(Hitter(name + " Designated Hitter", "DH"));
+        team.BaseLineup = LineupEngine.CreateBaseLineup(team);
         return team;
     }
 

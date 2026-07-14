@@ -3,13 +3,31 @@
 using System;
 using System.Drawing;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace StandaloneBaseball
 {
     public sealed class LeagueFile
     {
-        public const string DefaultAssetLibraryPath = "";
+        public const string LinkedAssetLibraryFolderName = "audio,Image and video Library";
+
+        public static string LinkedAssetLibraryPath => Path.Combine(
+            AppContext.BaseDirectory,
+            "Assets",
+            LinkedAssetLibraryFolderName);
+
+        public static string DefaultAssetLibraryPath
+        {
+            get
+            {
+#if LOCAL_ONLY_V2
+                return LinkedAssetLibraryPath;
+#else
+                return "";
+#endif
+            }
+        }
 
         public int SaveSchemaVersion { get; set; } = 1;
         public string Name { get; set; } = "New Baseball Universe";
@@ -889,8 +907,38 @@ namespace StandaloneBaseball
         public string LosingPitcherName { get; set; } = "";
         public Guid? SavePitcherId { get; set; }
         public string SavePitcherName { get; set; } = "";
+        public List<GameLineupEntry> AwayStartingLineup { get; set; } = new List<GameLineupEntry>();
+        public List<GameLineupEntry> HomeStartingLineup { get; set; } = new List<GameLineupEntry>();
         public List<GamePlayByPlayEntry> PlayByPlay { get; set; } = new List<GamePlayByPlayEntry>();
         public List<PlayerGameLine> Lines { get; set; } = new List<PlayerGameLine>();
+    }
+
+    public sealed class GameLineupEntry
+    {
+        public int BattingOrder { get; set; }
+        public int AppearanceOrder { get; set; }
+        public Guid PlayerId { get; set; }
+        public string PlayerName { get; set; } = "";
+        public string DefensivePosition { get; set; } = "";
+        public bool DesignatedHitter { get; set; }
+        public bool IsStarter { get; set; }
+        public Guid? ReplacedPlayerId { get; set; }
+        public string ReplacedPlayerName { get; set; } = "";
+        public int EnteredInning { get; set; } = 1;
+        public HalfInning EnteredHalf { get; set; } = HalfInning.Top;
+        public int? ExitedInning { get; set; }
+        public HalfInning? ExitedHalf { get; set; }
+        public string Positions { get; set; } = "";
+        public string BatGrade { get; set; } = "";
+        public List<GamePositionChange> PositionHistory { get; set; } = new List<GamePositionChange>();
+    }
+
+    public sealed class GamePositionChange
+    {
+        public int Inning { get; set; } = 1;
+        public HalfInning Half { get; set; } = HalfInning.Top;
+        public string Position { get; set; } = "";
+        public string Reason { get; set; } = "";
     }
 
     public sealed class GamePlayByPlayEntry

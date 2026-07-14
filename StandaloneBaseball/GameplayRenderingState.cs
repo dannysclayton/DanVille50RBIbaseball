@@ -75,6 +75,8 @@ namespace StandaloneBaseball
         public Guid? HomeEmergencyPitcherId { get; set; }
         public List<Guid> AwayLineupPlayerIds { get; } = new List<Guid>();
         public List<Guid> HomeLineupPlayerIds { get; } = new List<Guid>();
+        public List<GameLineupEntry> AwayStartingLineup { get; set; } = new List<GameLineupEntry>();
+        public List<GameLineupEntry> HomeStartingLineup { get; set; } = new List<GameLineupEntry>();
         public Guid? AwayDesignatedHitterId { get; set; }
         public Guid? HomeDesignatedHitterId { get; set; }
         public bool AwayDhActive { get; set; }
@@ -176,6 +178,8 @@ namespace StandaloneBaseball
         {
             ApplyLineupCard(AwayTeam, AwayLineupPlayerIds, away: true);
             ApplyLineupCard(HomeTeam, HomeLineupPlayerIds, away: false);
+            AwayStartingLineup = LineupEngine.CaptureStartingLineup(AwayTeam);
+            HomeStartingLineup = LineupEngine.CaptureStartingLineup(HomeTeam);
         }
 
         public void SeedFielders()

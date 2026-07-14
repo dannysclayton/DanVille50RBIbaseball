@@ -960,6 +960,8 @@ namespace StandaloneBaseball
                 HomeDesignatedHitterId = _state.HomeDesignatedHitterId,
                 AwayDhActive = _state.AwayDhActive,
                 HomeDhActive = _state.HomeDhActive,
+                AwayStartingLineup = _state.AwayStartingLineup.Select(CloneLineupEntry).ToList(),
+                HomeStartingLineup = _state.HomeStartingLineup.Select(CloneLineupEntry).ToList(),
                 AwayRunsByInning = _awayRunsByInning.ToList(),
                 HomeRunsByInning = _homeRunsByInning.ToList(),
                 AwayLeftOnBase = _playableAwayLeftOnBase,
@@ -1232,6 +1234,7 @@ namespace StandaloneBaseball
                 return false;
 
             Player outgoingPitcher = CurrentPitcher();
+            List<Guid> battingOrderBefore = CurrentFieldingBattingOrderIds();
             FinalizeCurrentPitcherInning();
             _state.CurrentPitcherIndex = normalizedIndex;
             _state.CurrentEmergencyPitcherId = null;
@@ -1239,6 +1242,7 @@ namespace StandaloneBaseball
 
             Player pitcher = CurrentPitcher();
             bool pitcherEnteredOrder = _state.EnsurePitcherBatsForFieldingTeam(pitcher, outgoingPitcher);
+            TrackPitcherParticipation(outgoingPitcher, pitcher, battingOrderBefore, "Pitcher change");
             _state.SeedFielders();
             RegisterRelieverEntryIfNeeded(pitcher);
             MarkCurrentPitcherAppeared();
@@ -1318,6 +1322,12 @@ namespace StandaloneBaseball
             _state.HomePitcherIndex = gameplayState.HomePitcherIndex;
             CopyLineupIds(gameplayState.AwayLineupPlayerIds, _state.AwayLineupPlayerIds);
             CopyLineupIds(gameplayState.HomeLineupPlayerIds, _state.HomeLineupPlayerIds);
+            _state.AwayStartingLineup = (gameplayState.AwayStartingLineup ?? new List<GameLineupEntry>()).Select(CloneLineupEntry).ToList();
+            _state.HomeStartingLineup = (gameplayState.HomeStartingLineup ?? new List<GameLineupEntry>()).Select(CloneLineupEntry).ToList();
+            if (_state.AwayStartingLineup.Count == 0)
+                _state.AwayStartingLineup = LineupEngine.CaptureStartingLineup(_state.AwayTeam);
+            if (_state.HomeStartingLineup.Count == 0)
+                _state.HomeStartingLineup = LineupEngine.CaptureStartingLineup(_state.HomeTeam);
             _state.AwayDesignatedHitterId = gameplayState.AwayDesignatedHitterId;
             _state.HomeDesignatedHitterId = gameplayState.HomeDesignatedHitterId;
             _state.AwayDhActive = gameplayState.AwayDhActive;
@@ -2905,6 +2915,7 @@ namespace StandaloneBaseball
                 _state.CurrentPitcherIndex = pitcherIndex;
                 _state.CurrentEmergencyPitcherId = null;
                 Player newPitcher = CurrentPitcher();
+                TrackPitcherParticipation(oldPitcher, newPitcher, CurrentFieldingBattingOrderIds(), "All-Star pitching plan");
                 _state.SeedFielders();
                 RegisterRelieverEntryIfNeeded(newPitcher);
                 MarkCurrentPitcherAppeared();
@@ -3435,6 +3446,7 @@ namespace StandaloneBaseball
 
             FinalizeCurrentPitcherInning();
             _pitchersRemovedByRunRule.Add(pitcher.Id);
+            List<Guid> battingOrderBefore = CurrentFieldingBattingOrderIds();
             int nextIndex = FindNextAvailablePitcherIndex(_state.FieldingTeam, _state.CurrentPitcherIndex + 1);
             if (nextIndex < 0)
             {
@@ -3450,6 +3462,7 @@ namespace StandaloneBaseball
                     PitchProfileEngine.AssignEmergencyPitchArsenal(emergencyPitcher, _rng);
                 _state.CurrentEmergencyPitcherId = emergencyPitcher.Id;
                 bool lostDh = _state.LoseDesignatedHitterForFieldingTeam(emergencyPitcher);
+                TrackPitcherParticipation(pitcher, emergencyPitcher, battingOrderBefore, "Emergency pitcher");
                 _state.SeedFielders();
                 RegisterRelieverEntryIfNeeded(emergencyPitcher);
                 MarkCurrentPitcherAppeared();
@@ -3463,6 +3476,7 @@ namespace StandaloneBaseball
             _state.CurrentEmergencyPitcherId = null;
             Player replacement = CurrentPitcher();
             bool pitcherEnteredOrder = _state.EnsurePitcherBatsForFieldingTeam(replacement, pitcher);
+            TrackPitcherParticipation(pitcher, replacement, battingOrderBefore, "Forced pitcher removal");
             _state.SeedFielders();
             RegisterRelieverEntryIfNeeded(replacement);
             MarkCurrentPitcherAppeared();
@@ -3497,6 +3511,44 @@ namespace StandaloneBaseball
                     .Where(p => !_pitchersRemovedByRunRule.Contains(p.Id))
                     .OrderByDescending(p => p.Overall)
                     .FirstOrDefault();
+        }
+
+        private List<Guid> CurrentFieldingBattingOrderIds()
+        {
+            return (_state.FieldingTeam?.Id == _state.AwayTeam?.Id ? _state.AwayLineupPlayerIds : _state.HomeLineupPlayerIds).ToList();
+        }
+
+        private void TrackPitcherParticipation(Player? outgoing, Player? incoming, IReadOnlyList<Guid>? before, string reason)
+        {
+            Team? team = _state.FieldingTeam;
+            if (team == null || incoming == null)
+                return;
+
+            List<Guid> after = team.Id == _state.AwayTeam?.Id ? _state.AwayLineupPlayerIds : _state.HomeLineupPlayerIds;
+            List<GameLineupEntry> entries = team.Id == _state.AwayTeam?.Id ? _state.AwayStartingLineup : _state.HomeStartingLineup;
+            int changedIndex = -1;
+            int count = Math.Min(before?.Count ?? 0, after.Count);
+            for (int index = 0; index < count; index++)
+            {
+                if (before![index] != after[index] && after[index] == incoming.Id)
+                {
+                    changedIndex = index;
+                    break;
+                }
+            }
+
+            Player? displaced = changedIndex >= 0
+                ? team.Roster?.FirstOrDefault(player => player.Id == before![changedIndex])
+                : null;
+            GameLineupTracker.RecordPitcherChange(
+                entries,
+                incoming,
+                outgoing,
+                _state.Inning,
+                _state.TopHalf ? HalfInning.Top : HalfInning.Bottom,
+                changedIndex >= 0 ? changedIndex + 1 : 0,
+                displaced,
+                reason);
         }
 
         private static void ApplyEmergencyPitchingStats(Player emergencyPitcher, Team team)
@@ -5936,6 +5988,8 @@ namespace StandaloneBaseball
                 HomeRunsByInning = _homeRunsByInning.ToList(),
                 AwayLeftOnBase = _playableAwayLeftOnBase,
                 HomeLeftOnBase = _playableHomeLeftOnBase,
+                AwayStartingLineup = _state.AwayStartingLineup.Select(CloneLineupEntry).ToList(),
+                HomeStartingLineup = _state.HomeStartingLineup.Select(CloneLineupEntry).ToList(),
                 Lines = resultLines,
                 PlayByPlay = _playByPlay.ToList()
             };
@@ -6194,6 +6248,35 @@ namespace StandaloneBaseball
                 return;
 
             target.AddRange(source.Where(id => id != Guid.Empty));
+        }
+
+        private static GameLineupEntry CloneLineupEntry(GameLineupEntry entry)
+        {
+            return new GameLineupEntry
+            {
+                BattingOrder = entry?.BattingOrder ?? 0,
+                AppearanceOrder = entry?.AppearanceOrder ?? 0,
+                PlayerId = entry?.PlayerId ?? Guid.Empty,
+                PlayerName = entry?.PlayerName ?? "",
+                DefensivePosition = entry?.DefensivePosition ?? "",
+                DesignatedHitter = entry?.DesignatedHitter ?? false,
+                IsStarter = entry?.IsStarter ?? false,
+                ReplacedPlayerId = entry?.ReplacedPlayerId,
+                ReplacedPlayerName = entry?.ReplacedPlayerName ?? "",
+                EnteredInning = entry?.EnteredInning ?? 1,
+                EnteredHalf = entry?.EnteredHalf ?? HalfInning.Top,
+                ExitedInning = entry?.ExitedInning,
+                ExitedHalf = entry?.ExitedHalf,
+                Positions = entry?.Positions ?? "",
+                BatGrade = entry?.BatGrade ?? "",
+                PositionHistory = (entry?.PositionHistory ?? new List<GamePositionChange>()).Select(change => new GamePositionChange
+                {
+                    Inning = change.Inning,
+                    Half = change.Half,
+                    Position = change.Position,
+                    Reason = change.Reason
+                }).ToList()
+            };
         }
 
         private static PointF Lerp(PointF a, PointF b, float t)

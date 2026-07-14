@@ -152,6 +152,7 @@ try {
         "MEDIA_LICENSE_RECOMMENDATIONS.md",
         "Assets\Data\schools.csv",
         "Assets\Replay Templates\ReplayTemplate.rbi-replay.json",
+        "Assets\Templates\Lineup Card Template.docx",
         "Assets\Trophies\baseball-mvp-trophy-template.jpg"
     )
     $missing = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $publishPath $_)) })

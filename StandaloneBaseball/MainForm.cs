@@ -476,6 +476,9 @@ namespace StandaloneBaseball
             var teamsMenu = new ToolStripMenuItem("&Teams");
             teamsMenu.DropDownItems.Add("Create Team From Schools CSV...", null, (s, e) => AddSchoolTeamFromCsv());
             teamsMenu.DropDownItems.Add("Update Schools CSV...", null, (s, e) => UpdateSchoolsCsv());
+#if LOCAL_ONLY_V2
+            teamsMenu.DropDownItems.Add("Edit Schools CSV in PyCharm", null, (s, e) => EditSchoolsCsvInPyCharm());
+#endif
             teamsMenu.DropDownItems.Add("Set User Controlled Teams...", null, (s, e) => SetUserControlledTeams());
             menu.Items.Add(file);
             menu.Items.Add(teamsMenu);
@@ -543,6 +546,8 @@ namespace StandaloneBaseball
             AddButton(teamButtons, "Random Roster", (s, e) => RandomRoster());
             AddButton(teamButtons, "Import Roster...", (s, e) => ImportSelectedTeamRosterFromLibrary());
             AddButton(teamButtons, "Base Lineup...", (s, e) => ManageBaseLineup());
+            AddButton(teamButtons, "Lineup Cards...", (s, e) => ExportLineupCards());
+            AddButton(teamButtons, "Season Game Library...", (s, e) => OpenSeasonGameLibrary());
             AddButton(teamButtons, "Pitching Plan...", (s, e) => ManagePitchingPlan());
             AddButton(teamButtons, "JV Pool...", (s, e) => ManageJvPool());
             AddButton(teamButtons, "Injured Reserve...", (s, e) => ManageInjuredReserve());
@@ -4154,6 +4159,39 @@ namespace StandaloneBaseball
                 _status.Text = "Updated schools CSV source: " + savedPath;
         }
 
+#if LOCAL_ONLY_V2
+        private void EditSchoolsCsvInPyCharm()
+        {
+            try
+            {
+                LocalIntegrationSettings settings = LocalIntegrationSettings.Load();
+                if (!File.Exists(settings.PyCharmExecutablePath))
+                    throw new FileNotFoundException("PyCharm 2025.2.2 was not found.", settings.PyCharmExecutablePath);
+
+                string csvPath = SchoolTeamCsvCatalog.PreferredSchoolsCsvPath;
+                if (!File.Exists(csvPath))
+                    throw new FileNotFoundException("The linked schools.csv file was not found.", csvPath);
+
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = settings.PyCharmExecutablePath,
+                    UseShellExecute = false
+                };
+                startInfo.ArgumentList.Add(csvPath);
+                System.Diagnostics.Process.Start(startInfo);
+                _status.Text = "Opened linked schools.csv in PyCharm 2025.2.2.";
+            }
+            catch (Exception ex) when (ex is IOException
+                || ex is UnauthorizedAccessException
+                || ex is InvalidDataException
+                || ex is System.ComponentModel.Win32Exception)
+            {
+                MessageBox.Show(this, ex.Message, "Could not open schools.csv in PyCharm",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+#endif
+
         private string UpdateSchoolsCsvFromPicker()
         {
             using var dlg = new OpenFileDialog
@@ -4401,6 +4439,75 @@ namespace StandaloneBaseball
             var result = form.ShowDialog(this);
             if (result == DialogResult.Retry)
                 ManageBaseLineup();
+        }
+
+        private void ExportLineupCards()
+        {
+            if (_league == null || _league.Teams == null || _league.Teams.Count == 0)
+            {
+                MessageBox.Show(this, "Add at least one team before creating lineup cards.", "Lineup Cards", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!EnsureLeagueSavedForAssets())
+                return;
+
+            foreach (Team team in _league.Teams)
+                EnsureTeamBaseLineup(team, recalculate: false);
+
+            using var dialog = new LineupCardExportDialog(_league, SelectedTeam(), GetTeamLogoPath);
+            dialog.ShowDialog(this);
+        }
+
+        private void OpenSeasonGameLibrary()
+        {
+            if (_league == null || _league.Teams == null || _league.Teams.Count == 0)
+            {
+                MessageBox.Show(this, "Add at least one team before opening the season game library.", "Season Game Library", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (!EnsureLeagueSavedForAssets())
+                return;
+            using var dialog = new GameLibraryDialog(_league, SelectedTeam(), GetTeamLogoPath, team => GetTeamAssetDir(team, true));
+            dialog.ShowDialog(this);
+        }
+
+        private void PrepareGameLibrarySnapshots()
+        {
+            if (_league == null)
+                return;
+            foreach (Season season in _league.Seasons ?? new List<Season>())
+            {
+                foreach (GameResult game in season.Games ?? new List<GameResult>())
+                {
+                    Team? away = TeamById(game.AwayTeamId);
+                    Team? home = TeamById(game.HomeTeamId);
+                    game.AwayStartingLineup ??= new List<GameLineupEntry>();
+                    game.HomeStartingLineup ??= new List<GameLineupEntry>();
+                    if (away != null && game.AwayStartingLineup.Count == 0)
+                        game.AwayStartingLineup = LineupEngine.CaptureStartingLineup(away);
+                    if (home != null && game.HomeStartingLineup.Count == 0)
+                        game.HomeStartingLineup = LineupEngine.CaptureStartingLineup(home);
+                }
+            }
+        }
+
+        private void BackfillSeasonGameLibrary()
+        {
+            if (_league == null || string.IsNullOrWhiteSpace(_path))
+                return;
+            foreach (Season season in _league.Seasons ?? new List<Season>())
+            {
+                foreach (GameResult game in season.Games ?? new List<GameResult>())
+                {
+                    GameLibraryService.ArchiveGame(
+                        _league,
+                        season,
+                        game,
+                        team => GetTeamAssetDir(team, true),
+                        GetTeamLogoPath);
+                }
+            }
         }
 
         private void ManagePitchingPlan()
@@ -11968,13 +12075,25 @@ namespace StandaloneBaseball
                 {
                     catalogWarning = ex.Message;
                 }
+                PrepareGameLibrarySnapshots();
                 LeagueStore.Save(targetPath, league);
                 SaveAllTeamBaseLineupFiles();
                 SaveAllTeamPitchingPlanFiles();
+                string libraryWarning = "";
+                try
+                {
+                    BackfillSeasonGameLibrary();
+                }
+                catch (Exception ex)
+                {
+                    libraryWarning = ex.Message;
+                }
                 _dirty = false;
                 RefreshAll();
                 if (!string.IsNullOrWhiteSpace(catalogWarning))
                     _status.Text = "Dynasty saved, but schools.csv logo synchronization failed: " + catalogWarning;
+                else if (!string.IsNullOrWhiteSpace(libraryWarning))
+                    _status.Text = "Dynasty saved, but the season game library could not be updated: " + libraryWarning;
                 return true;
             }
             catch (Exception ex)

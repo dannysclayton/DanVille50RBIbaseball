@@ -67,6 +67,8 @@ public sealed class PackagingMetadataTests
         Assert.Equal("PreserveNewest", publicTrophy.Element("CopyToPublishDirectory")?.Value);
         Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(projectPath)!,
             "Assets", "Trophies", "baseball-mvp-trophy-template.jpg")));
+        Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(projectPath)!,
+            "Assets", "Templates", "Lineup Card Template.docx")));
 
         string profiles = Path.Combine(Path.GetDirectoryName(projectPath)!, "Properties", "PublishProfiles");
         XDocument publicProfile = XDocument.Load(Path.Combine(profiles, "PublicV1SingleFile.pubxml"));
@@ -122,6 +124,7 @@ public sealed class PackagingMetadataTests
         Assert.Contains("Invoke-AuthenticodeSigning.ps1", publicScript);
         Assert.Contains("Invoke-AuthenticodeSigning.ps1", localScript);
         Assert.Contains("Assets/Trophies/baseball-mvp-trophy-template.jpg", publicScript);
+        Assert.Contains("Assets\\Templates\\Lineup Card Template.docx", publicScript);
     }
 
     private static string FindProjectFile()

@@ -143,6 +143,54 @@ namespace StandaloneBaseball
         public static IReadOnlyList<Player> GetBattingOrder(Team team)
             => BuildLineupCard(team).BattingOrder.Select(s => s.Player).Where(p => p != null).ToList();
 
+        public static List<GameLineupEntry> CaptureStartingLineup(Team team)
+        {
+            if (team == null)
+                return new List<GameLineupEntry>();
+
+            LineupCard card = BuildLineupCard(team);
+            var entries = card.BattingOrder
+                .Where(slot => slot?.Player != null)
+                .OrderBy(slot => slot.BattingOrder)
+                .Select(slot => new GameLineupEntry
+                {
+                    BattingOrder = slot.BattingOrder,
+                    AppearanceOrder = slot.BattingOrder,
+                    PlayerId = slot.Player.Id,
+                    PlayerName = slot.Player.Name ?? "",
+                    DefensivePosition = slot.DefensivePosition ?? "",
+                    DesignatedHitter = slot.DesignatedHitter,
+                    IsStarter = true,
+                    Positions = slot.Player.Positions ?? "",
+                    BatGrade = LineupCardExporter.BatGrade(slot.Player),
+                    PositionHistory = new List<GamePositionChange>
+                    {
+                        new GamePositionChange { Inning = 1, Half = HalfInning.Top, Position = slot.DesignatedHitter ? "DH" : slot.DefensivePosition, Reason = "Starting lineup" }
+                    }
+                })
+                .ToList();
+
+            if (card.StartingPitcher != null && entries.All(entry => entry.PlayerId != card.StartingPitcher.Id))
+            {
+                entries.Add(new GameLineupEntry
+                {
+                    BattingOrder = 0,
+                    AppearanceOrder = entries.Count + 1,
+                    PlayerId = card.StartingPitcher.Id,
+                    PlayerName = card.StartingPitcher.Name ?? "",
+                    DefensivePosition = "P",
+                    IsStarter = true,
+                    Positions = card.StartingPitcher.Positions ?? "",
+                    BatGrade = LineupCardExporter.BatGrade(card.StartingPitcher),
+                    PositionHistory = new List<GamePositionChange>
+                    {
+                        new GamePositionChange { Inning = 1, Half = HalfInning.Top, Position = "P", Reason = "Starting pitcher (DH in use)" }
+                    }
+                });
+            }
+            return entries;
+        }
+
         public static IReadOnlyList<Player> GetPitchingStaff(Team team)
             => PitchingRotationEngine.GetPitchingStaff(team);
 

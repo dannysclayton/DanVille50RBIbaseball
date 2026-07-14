@@ -1,12 +1,12 @@
 # Dan's RBI Baseball 2026
 
-Dan's RBI Baseball 2026 is a standalone Windows baseball game, dynasty simulator, and team editor. This repository contains the public Version 1.0 source, regression tests, reproducible publishing configuration, and a self-contained Windows build.
+Dan's RBI Baseball 2026 is a standalone Windows baseball game with season and dynasty modes, and team editor. This repository contains the public Version 1.0 source, regression tests, reproducible publishing configuration, and a self-contained Windows build.
 
 ## Public Release
 
 The current self-contained Windows executable is available at [`release/public-v1.0/DanVille50RBIbaseball.exe`](release/public-v1.0/DanVille50RBIbaseball.exe). Its SHA-256 checksum is recorded in [`release/public-v1.0/SHA256SUMS.txt`](release/public-v1.0/SHA256SUMS.txt).
 
-The public package intentionally uses code-rendered fallback visuals and silence where redistribution rights for local media have not been established. Personal Local 2.0 media is not included in this repository.
+The public package intentionally uses code-rendered fallback visuals and silence where redistribution rights for local media have not been established. You will be able to use your own music, whether in game, menu, or even when viewing statistics. In addition, photos and video can be added to create "Cut Scenes" and also be displayed in game. 
 
 ## Features
 
@@ -18,6 +18,7 @@ The complete feature inventory is in [`StandaloneBaseball/Feautures.md`](Standal
 - Keyboard and XInput controller support with selectable team assignments.
 - In-progress game saves, replay import/playback, portable user data, and dynasty backup recovery.
 - Complete team/player statistics with sortable views and native Excel/Word export.
+- complete editable features so the user can make any league, team, district...anything you desire! 
 
 ## Build
 

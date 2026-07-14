@@ -58,6 +58,7 @@ The dynasty layer also includes:
 - A dynasty history archive stored inside each league save, including season schedules, results, playoffs, rankings, awards, all-star selections, champions, and offseason state.
 - All-Star selections and All-Star Game.
 - Position awards and named awards.
+- Winner trophy galleries on team, player, Awards, and Hall of Fame pages, with original or generated plaque selection and image export.
 - Coach records and coach Hall of Fame.
 - Player Hall of Fame with regular-season, playoff, all-star, and leader bonuses.
 - Rankings with preseason, weekly, and final polls.

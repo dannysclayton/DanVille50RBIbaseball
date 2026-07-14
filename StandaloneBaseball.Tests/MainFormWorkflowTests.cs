@@ -59,6 +59,21 @@ public sealed class MainFormWorkflowTests
     }
 
     [Fact]
+    public void MainForm_ProvidesTrophyAccessAcrossRequestedPages()
+    {
+        WinFormsTestHost.Run(() =>
+        {
+            using var form = new MainForm();
+            List<Control> controls = Descendants(form).ToList();
+
+            Assert.Contains(controls.OfType<Button>(), button => button.Text == "Team Trophies...");
+            Assert.Contains(controls.OfType<Button>(), button => button.Text == "Player Trophies...");
+            Assert.Equal(2, controls.OfType<TabPage>().Count(page => page.Text == "Trophies"));
+            Assert.Equal(2, controls.OfType<TrophyGalleryControl>().Count());
+        });
+    }
+
+    [Fact]
     public void MainForm_CommittedGameAutosavesDynasty()
     {
         WinFormsTestHost.Run(() =>
@@ -123,5 +138,15 @@ public sealed class MainFormWorkflowTests
                     Directory.Delete(directory, recursive: true);
             }
         });
+    }
+
+    private static IEnumerable<Control> Descendants(Control root)
+    {
+        foreach (Control child in root.Controls)
+        {
+            yield return child;
+            foreach (Control descendant in Descendants(child))
+                yield return descendant;
+        }
     }
 }

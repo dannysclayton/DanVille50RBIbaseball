@@ -133,6 +133,7 @@ separate verification before public distribution.
 - `Assets/Loading Screens/game day 2.jpg`
 - `Assets/National Anthem/flags.png`
 - `Assets/Scoreboards/east-view-scoreboard-template.jpg`
+- `Assets/Trophies/baseball-mvp-trophy-template.jpg`
 - `Assets/Stadiums/acu-field.png`
 - `Assets/Stadiums/ballpark-at-arlington.jpg`
 - `Assets/Stadiums/Custom/aledo-field.jpg`

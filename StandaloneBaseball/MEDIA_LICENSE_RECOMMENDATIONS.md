@@ -8,9 +8,10 @@ does not grant rights to any asset. The detailed file inventory is in
 
 - **Local-only Version 2.0** retains every current file unchanged for use on the
   owner's computer. The local publish script verifies every asset by SHA-256.
-- **Public Version 1.0** excludes all packaged audio, photographs, artwork, venue
+- **Public Version 1.0** excludes packaged audio, photographs, artwork, venue
   images, and other bitmap/video media whose redistribution rights are not stored
-  with the project.
+  with the project, except for the user-approved trophy template explicitly
+  required for the shared trophy feature.
 - Public publishing keeps `schools.csv`, the replay template, documentation, and
   the executable. Missing media uses code-rendered visuals and silence.
 - An asset may move into the public package only after its exact file has a stored
@@ -26,6 +27,7 @@ does not grant rights to any asset. The detailed file inventory is in
 | Swooshes and generic effects with creator-like filenames | Re-download from the exact official source page and retain the source URL, download record, license text/certificate, creator, date, and original filename. If the exact source cannot be proven, replace it. | Silence. |
 | Stadium and field photographs | Obtain a license from the photographer/rightsholder for software redistribution and verify any separately protected logos or artwork, or replace with an original generic field rendering. | The gameplay renderer draws its generic baseball field. |
 | Launch, loading, menu, lineup, All-Star, flag, scoreboard, championship badge, and stadium artwork | Store a signed ownership declaration or artist license for the exact file, including commercial redistribution and modification rights, or create original replacement artwork with documented provenance. | Code-rendered launch, loading, and menu screens; text/initials replace unavailable logos; generic presentation panels replace images. |
+| Baseball MVP trophy template | Confirm ownership or obtain written permission covering redistribution and modification of the exact photograph. The user has directed that this one template ship in both packages. | The trophy renderer can draw a generic trophy if the template is removed. |
 | Team, school, venue, and league trademarks visible in media | Obtain any permission needed for the intended branding use or remove/replace the marks. | Generic team text and user-supplied local assets. |
 
 ## Online Source Research Result

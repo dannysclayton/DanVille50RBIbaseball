@@ -59,6 +59,15 @@ public sealed class PackagingMetadataTests
         Assert.Contains("Public", (string)publicMedia.Attribute("Condition"));
         Assert.Equal("Never", publicMedia.Element("CopyToPublishDirectory")?.Value);
 
+        XElement publicTrophy = project.Descendants("None").Single(element =>
+            string.Equals((string)element.Attribute("Update"),
+                "Assets\\Trophies\\baseball-mvp-trophy-template.jpg",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("Public", (string)publicTrophy.Attribute("Condition"));
+        Assert.Equal("PreserveNewest", publicTrophy.Element("CopyToPublishDirectory")?.Value);
+        Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(projectPath)!,
+            "Assets", "Trophies", "baseball-mvp-trophy-template.jpg")));
+
         string profiles = Path.Combine(Path.GetDirectoryName(projectPath)!, "Properties", "PublishProfiles");
         XDocument publicProfile = XDocument.Load(Path.Combine(profiles, "PublicV1SingleFile.pubxml"));
         XDocument localProfile = XDocument.Load(Path.Combine(profiles, "LocalV2SingleFile.pubxml"));
@@ -112,6 +121,7 @@ public sealed class PackagingMetadataTests
         Assert.Contains("LocalV2.iss", localScript);
         Assert.Contains("Invoke-AuthenticodeSigning.ps1", publicScript);
         Assert.Contains("Invoke-AuthenticodeSigning.ps1", localScript);
+        Assert.Contains("Assets/Trophies/baseball-mvp-trophy-template.jpg", publicScript);
     }
 
     private static string FindProjectFile()

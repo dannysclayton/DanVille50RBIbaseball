@@ -31,3 +31,5 @@ release/local-v2.0/
 *.avi
 *.wmv
 *.mov
+!StandaloneBaseball/Assets/Trophies/baseball-mvp-trophy-template.jpg
+!release/public-v1.0/Assets/Trophies/baseball-mvp-trophy-template.jpg

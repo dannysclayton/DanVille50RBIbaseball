@@ -132,8 +132,15 @@ try {
         ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".dib",
         ".mp4", ".avi", ".wmv", ".mov"
     )
+    $approvedPublicMedia = @(
+        "Assets/Trophies/baseball-mvp-trophy-template.jpg"
+    )
     $publishedMedia = @(Get-ChildItem -LiteralPath (Join-Path $publishPath "Assets") -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $restrictedExtensions -contains $_.Extension.ToLowerInvariant() })
+        Where-Object {
+            $relativePath = [IO.Path]::GetRelativePath($publishPath, $_.FullName).Replace("\", "/")
+            ($restrictedExtensions -contains $_.Extension.ToLowerInvariant()) -and
+                ($approvedPublicMedia -notcontains $relativePath)
+        })
     if ($publishedMedia.Count -gt 0) {
         $paths = $publishedMedia | ForEach-Object { [IO.Path]::GetRelativePath($publishPath, $_.FullName) }
         throw "Public publish contains $($publishedMedia.Count) uncleared media file(s):`n$($paths -join "`n")"
@@ -144,7 +151,8 @@ try {
         "THIRD_PARTY_ATTRIBUTIONS.md",
         "MEDIA_LICENSE_RECOMMENDATIONS.md",
         "Assets\Data\schools.csv",
-        "Assets\Replay Templates\ReplayTemplate.rbi-replay.json"
+        "Assets\Replay Templates\ReplayTemplate.rbi-replay.json",
+        "Assets\Trophies\baseball-mvp-trophy-template.jpg"
     )
     $missing = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $publishPath $_)) })
     if ($missing.Count -gt 0) {

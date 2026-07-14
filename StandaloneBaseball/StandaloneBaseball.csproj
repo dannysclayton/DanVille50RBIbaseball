@@ -54,6 +54,14 @@
           Condition="'$(DistributionChannel)' == 'Public'">
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
+
+    <!-- This user-approved trophy template is the only bitmap intentionally shipped in both distributions. -->
+    <None Update="Assets\Trophies\baseball-mvp-trophy-template.jpg"
+          Condition="'$(DistributionChannel)' == 'Public'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
   </ItemGroup>
 
 </Project>

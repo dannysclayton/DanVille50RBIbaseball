@@ -506,6 +506,11 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - Ivan Rodriguez Award is used for catcher.
 - Johnny Oates Award is given to the World Series winning coach as Coach of the Year.
 - Johnny Oates Award qualifies the coach for Hall of Fame consideration.
+- Finalized award winners receive a season trophy generated from the packaged Baseball MVP trophy template.
+- Trophy plaques identify the award, dynasty season number, recipient, and team.
+- Trophy galleries are available from team pages, player pages, the Awards page, and Hall of Fame pages.
+- Users can choose the untouched original plaque or the generated award-winner plaque for viewing and export.
+- Individual trophies can be permanently exported as PNG or JPEG images.
 
 ## Hall of Fame
 

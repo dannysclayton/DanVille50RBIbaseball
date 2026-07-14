@@ -396,6 +396,7 @@ namespace StandaloneBaseball
         private TextBox _inboxBodyBox;
         private TreeView _structureTree;
         private TabControl _allStarTabs, _awardTabs, _hofTabs;
+        private TrophyGalleryControl _awardTrophyGallery, _hofTrophyGallery;
         private ComboBox _awayCombo, _homeCombo, _seasonCombo, _commitSeasonCombo, _rankingSeasonCombo, _rankingPollCombo, _allStarSeasonCombo, _allStarStatsScopeCombo, _awardSeasonCombo, _teamStatsTeamCombo, _teamStatsSeasonCombo, _teamStatsScopeCombo, _playerStatsTeamCombo, _playerStatsSeasonCombo, _playerStatsScopeCombo, _recordsBookLevelCombo, _recordsBookEntityCombo, _recordsBookScopeCombo, _hofTeamCombo, _inningsCombo, _scheduledGameCombo, _fieldPresetCombo, _controlTeamCombo, _pvpInputCombo, _awayUniformCombo, _homeUniformCombo, _inboxFilterCombo;
         private ToolStripStatusLabel _status;
         private Label _simResult, _championLabel, _rankingSummaryLabel, _allStarSummaryLabel, _awardSummaryLabel, _teamLeadersLabel, _playerLeadersLabel, _hofSummaryLabel, _inboxSummaryLabel;
@@ -534,7 +535,7 @@ namespace StandaloneBaseball
             _teamList = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
             _teamList.SelectedIndexChanged += (s, e) => LoadSelectedTeam();
             left.Controls.Add(_teamList, 0, 0);
-            var teamButtons = new FlowLayoutPanel { Dock = DockStyle.Fill };
+            var teamButtons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true };
             AddButton(teamButtons, "Add", (s, e) => AddTeam());
             AddButton(teamButtons, "Add School...", (s, e) => AddSchoolTeamFromCsv());
             AddButton(teamButtons, "Update Schools", (s, e) => UpdateSchoolsCsv());
@@ -557,6 +558,7 @@ namespace StandaloneBaseball
             AddButton(teamButtons, "Anthem Images...", (s, e) => ManageTeamNationalAnthemImages());
             AddButton(teamButtons, "Sprites...", (s, e) => ManageTeamSprites());
             AddButton(teamButtons, "Team Cutscenes...", (s, e) => ManageTeamCutscenes());
+            AddButton(teamButtons, "Team Trophies...", (s, e) => ShowSelectedTeamTrophies());
             left.Controls.Add(teamButtons, 0, 1);
             split.Panel1.Controls.Add(left);
 
@@ -720,11 +722,42 @@ namespace StandaloneBaseball
             AddButton(playerButtons, "Remove Player", (s, e) => RemovePlayer());
             AddButton(playerButtons, "Player Photo...", (s, e) => ManagePlayerAvatar());
             AddButton(playerButtons, "Player Sprite...", (s, e) => ManageTeamSprites());
+            AddButton(playerButtons, "Player Trophies...", (s, e) => ShowSelectedPlayerTrophies());
             AddButton(playerButtons, "Export Badges...", (s, e) => ExportTeamBadgeStrip());
             AddButton(playerButtons, "Roster Excel", (s, e) => ExportGrid(_rosterGrid, RosterExportTitle(), ExportFormat.Excel));
             AddButton(playerButtons, "Roster Word", (s, e) => ExportGrid(_rosterGrid, RosterExportTitle(), ExportFormat.Word));
             right.Controls.Add(playerButtons, 0, 3);
             split.Panel2.Controls.Add(right);
+        }
+
+        private void ShowSelectedTeamTrophies()
+        {
+            Team? team = SelectedTeam();
+            if (team == null)
+                return;
+            List<AwardTrophyRecord> trophies = TrophyCatalog.Build(_league)
+                .Where(trophy => trophy.TeamId == team.Id)
+                .ToList();
+            using var dialog = new TrophyGalleryDialog(team.DisplayName + " Trophies", trophies);
+            dialog.ShowDialog(this);
+        }
+
+        private void ShowSelectedPlayerTrophies()
+        {
+            Team? team = SelectedTeam();
+            Player? player = _rosterGrid?.CurrentRow?.Tag as Player;
+            if (team == null || player == null)
+            {
+                MessageBox.Show(this, "Select a player first.", "Player trophies",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            List<AwardTrophyRecord> trophies = TrophyCatalog.Build(_league)
+                .Where(trophy => trophy.RecipientId == player.Id)
+                .ToList();
+            using var dialog = new TrophyGalleryDialog(player.Name + " Trophies", trophies);
+            dialog.ShowDialog(this);
         }
 
         private void BuildSimTab(TabPage tab)
@@ -1139,6 +1172,7 @@ namespace StandaloneBaseball
             var bat = new TabPage("Silver Bat");
             var finalists = new TabPage("Finalists");
             var history = new TabPage("Award History");
+            var trophies = new TabPage("Trophies");
 
             _awardRacesGrid = CreateReadOnlyGrid();
             _positionAwardsGrid = CreateReadOnlyGrid();
@@ -1159,7 +1193,9 @@ namespace StandaloneBaseball
             bat.Controls.Add(_silverBatGrid);
             finalists.Controls.Add(_awardFinalistsGrid);
             history.Controls.Add(_awardHistoryGrid);
-            _awardTabs.TabPages.AddRange(new[] { races, position, glove, bat, finalists, history });
+            _awardTrophyGallery = new TrophyGalleryControl();
+            trophies.Controls.Add(_awardTrophyGallery);
+            _awardTabs.TabPages.AddRange(new[] { races, position, glove, bat, finalists, history, trophies });
             root.Controls.Add(_awardTabs, 0, 2);
             tab.Controls.Add(root);
         }
@@ -1261,6 +1297,7 @@ namespace StandaloneBaseball
             var candidates = new TabPage("Candidates");
             var coachCandidates = new TabPage("Coach Candidates");
             var records = new TabPage("All-Time Records");
+            var trophies = new TabPage("Trophies");
             _hofDynastyGrid = CreateReadOnlyGrid();
             _hofTeamGrid = CreateReadOnlyGrid();
             _hofCandidatesGrid = CreateReadOnlyGrid();
@@ -1286,7 +1323,9 @@ namespace StandaloneBaseball
             candidates.Controls.Add(_hofCandidatesGrid);
             coachCandidates.Controls.Add(_hofCoachCandidatesGrid);
             records.Controls.Add(_hofRecordsGrid);
-            tabs.TabPages.AddRange(new[] { dynasty, team, teamPage, candidates, coachCandidates, records });
+            _hofTrophyGallery = new TrophyGalleryControl();
+            trophies.Controls.Add(_hofTrophyGallery);
+            tabs.TabPages.AddRange(new[] { dynasty, team, teamPage, candidates, coachCandidates, records, trophies });
             root.Controls.Add(tabs, 0, 2);
             tab.Controls.Add(root);
         }
@@ -9342,6 +9381,7 @@ namespace StandaloneBaseball
             {
                 if (_awardSummaryLabel != null)
                     _awardSummaryLabel.Text = "Select a season.";
+                _awardTrophyGallery?.SetTrophies(Array.Empty<AwardTrophyRecord>());
                 return;
             }
 
@@ -9353,6 +9393,8 @@ namespace StandaloneBaseball
             FillAwardGrid(_silverBatGrid, candidates.Where(c => c.Category == "Silver Bat"));
             FillAwardGrid(_awardFinalistsGrid, candidates);
             FillAwardHistoryGrid(season);
+            _awardTrophyGallery?.SetTrophies(TrophyCatalog.Build(_league)
+                .Where(trophy => trophy.SeasonId == season.Id));
 
             if (_awardSummaryLabel != null)
             {
@@ -10294,6 +10336,13 @@ namespace StandaloneBaseball
             FillCoachHallCandidatesGrid(coachCandidates);
             FillHallRecordsGrid(candidates);
             RefreshTeamHallOfFamePage(selectedTeam);
+            var hallRecipientIds = new HashSet<Guid>(_league.HallOfFameEntries.Select(entry =>
+                IsCoachHallEntry(entry) && entry.CoachId != Guid.Empty ? entry.CoachId : entry.PlayerId));
+            IEnumerable<AwardTrophyRecord> hallTrophies = TrophyCatalog.Build(_league)
+                .Where(trophy => hallRecipientIds.Contains(trophy.RecipientId));
+            if (selectedTeam != null)
+                hallTrophies = hallTrophies.Where(trophy => trophy.TeamId == selectedTeam.Id);
+            _hofTrophyGallery?.SetTrophies(hallTrophies);
 
             if (_hofSummaryLabel != null)
             {

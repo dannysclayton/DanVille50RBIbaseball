@@ -48,7 +48,7 @@ namespace StandaloneBaseball
 
         public static bool ShouldCallSafeOffense(
             Random rng,
-            Coach coach,
+            Coach? coach,
             bool rightCall,
             bool gameOnLine,
             bool scoringOpportunity)
@@ -69,7 +69,7 @@ namespace StandaloneBaseball
 
         public static bool ShouldCallPreventDefense(
             Random rng,
-            Coach coach,
+            Coach? coach,
             bool rightCall,
             bool gameOnLine,
             bool runThreat)
@@ -88,7 +88,7 @@ namespace StandaloneBaseball
             };
         }
 
-        public static int StrategyExecutionModifier(Coach coach, bool correctCall)
+        public static int StrategyExecutionModifier(Coach? coach, bool correctCall)
         {
             int chance = CorrectCallChance(coach);
             int qualityBonus = chance switch

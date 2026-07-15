@@ -214,7 +214,7 @@ namespace StandaloneBaseball
             int homeAwayCount,
             int seriesLength,
             Func<Placement, Placement, bool> relation,
-            ref string error)
+            ref string? error)
         {
             if (homeAwayCount <= 0)
                 return;

@@ -25,6 +25,11 @@ namespace StandaloneBaseball
         private readonly Label _basesLabel;
         private readonly TextBox _playText;
         private readonly Button _playButton;
+        private readonly Button _previousInningButton;
+        private readonly Button _previousEventButton;
+        private readonly Button _nextEventButton;
+        private readonly Button _nextInningButton;
+        private readonly ComboBox _speedCombo;
         private readonly Stopwatch _playbackClock = new Stopwatch();
         private readonly List<LaunchSoundPlayer> _replayAudioPlayers = new List<LaunchSoundPlayer>();
         private readonly HashSet<string> _playedCueKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -34,6 +39,8 @@ namespace StandaloneBaseball
         private long _replayTimeMs;
         private long _lastClockMilliseconds;
         private long _lastExactFrameTimeMs;
+        private long _playbackScaleRemainder;
+        private ReplayPlaybackSpeed _playbackSpeed = ReplayWatchNavigation.NormalSpeed;
 
         public ReplayWatchForm(
             ReplayFile replay,
@@ -106,24 +113,62 @@ namespace StandaloneBaseball
             var buttons = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft,
+                FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false
             };
-            _playButton = new Button { Text = "Play", AutoSize = true };
+            buttons.Controls.Add(new Label
+            {
+                Text = "Speed",
+                AutoSize = true,
+                Margin = new Padding(3, 9, 3, 0)
+            });
+            _speedCombo = new ComboBox
+            {
+                Name = "ReplaySpeedComboBox",
+                AccessibleName = "Replay playback speed",
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 68,
+                TabIndex = 0
+            };
+            foreach (ReplayPlaybackSpeed speed in ReplayWatchNavigation.PlaybackSpeeds)
+                _speedCombo.Items.Add(speed);
+            _speedCombo.SelectedItem = _playbackSpeed;
+            _speedCombo.SelectedIndexChanged += (s, e) => ChangePlaybackSpeed();
+            buttons.Controls.Add(_speedCombo);
+
+            _previousInningButton = ReplayButton("ReplayPreviousInningButton", "Previous Inning", "Jump to previous inning", 1, JumpToPreviousInning);
+            _previousEventButton = ReplayButton("ReplayPreviousEventButton", "Previous Event", "Jump to previous event", 2, JumpToPreviousEvent);
+            _nextEventButton = ReplayButton("ReplayNextEventButton", "Next Event", "Jump to next event", 3, JumpToNextEvent);
+            _nextInningButton = ReplayButton("ReplayNextInningButton", "Next Inning", "Jump to next inning", 4, JumpToNextInning);
+            _playButton = new Button
+            {
+                Name = "ReplayPlayButton",
+                AccessibleName = "Play or pause replay",
+                Text = "Play",
+                AutoSize = true,
+                TabIndex = 5
+            };
             _playButton.Click += (s, e) => TogglePlay();
-            var step = new Button { Text = "Step", AutoSize = true };
+            var step = new Button { Text = "Step", AutoSize = true, TabIndex = 6, AccessibleName = "Step replay" };
             step.Click += (s, e) => Step();
-            var reset = new Button { Text = "Reset", AutoSize = true };
+            var reset = new Button { Text = "Reset", AutoSize = true, TabIndex = 7, AccessibleName = "Reset replay" };
             reset.Click += (s, e) => ResetReplay();
-            var close = new Button { Text = "Close", AutoSize = true };
+            var close = new Button { Text = "Close", AutoSize = true, TabIndex = 8, AccessibleName = "Close replay" };
             close.Click += (s, e) => Close();
-            buttons.Controls.Add(close);
-            buttons.Controls.Add(reset);
-            buttons.Controls.Add(step);
+            buttons.Controls.Add(_previousInningButton);
+            buttons.Controls.Add(_previousEventButton);
+            buttons.Controls.Add(_nextEventButton);
+            buttons.Controls.Add(_nextInningButton);
             buttons.Controls.Add(_playButton);
+            buttons.Controls.Add(step);
+            buttons.Controls.Add(reset);
+            buttons.Controls.Add(close);
             root.Controls.Add(buttons, 0, 3);
 
-            _timer = new System.Windows.Forms.Timer { Interval = _replay.UsesTimedPlayback ? 15 : 1200 };
+            _timer = new System.Windows.Forms.Timer
+            {
+                Interval = _replay.UsesTimedPlayback ? 15 : ReplayWatchNavigation.SnapshotInterval(_playbackSpeed)
+            };
             _timer.Tick += (s, e) => PlaybackTick();
 
             ResetReplay();
@@ -281,7 +326,7 @@ namespace StandaloneBaseball
         {
             team.Roster ??= new List<Player>();
             string replayId = ReplayPlayerKey(team, replayPlayer);
-            if (_playersByReplayId.TryGetValue(replayId, out Player existing))
+            if (_playersByReplayId.TryGetValue(replayId, out Player? existing))
                 return existing;
 
             var player = new Player
@@ -393,7 +438,7 @@ namespace StandaloneBaseball
             {
                 if (defensive.ContainsKey(position))
                     continue;
-                Player player = team.Roster.FirstOrDefault(p => PositionAssignmentEngine.CanAssign(p, position)) ?? team.Roster.FirstOrDefault();
+                Player? player = team.Roster.FirstOrDefault(p => PositionAssignmentEngine.CanAssign(p, position)) ?? team.Roster.FirstOrDefault();
                 if (player != null)
                     defensive[position] = player.Id;
             }
@@ -409,7 +454,7 @@ namespace StandaloneBaseball
                 });
             }
 
-            Player pitcher = defensive.TryGetValue("P", out Guid pitcherId)
+            Player? pitcher = defensive.TryGetValue("P", out Guid pitcherId)
                 ? team.Roster.FirstOrDefault(p => p.Id == pitcherId)
                 : team.Roster.FirstOrDefault(p => p.Role == PlayerRole.Pitcher);
             if (pitcher != null)
@@ -454,6 +499,7 @@ namespace StandaloneBaseball
             if (_replay.UsesTimedPlayback)
             {
                 _lastClockMilliseconds = 0;
+                _playbackScaleRemainder = 0;
                 _playbackClock.Restart();
             }
             _timer.Start();
@@ -471,7 +517,8 @@ namespace StandaloneBaseball
             long elapsed = _playbackClock.ElapsedMilliseconds;
             long delta = Math.Max(0, elapsed - _lastClockMilliseconds);
             _lastClockMilliseconds = elapsed;
-            AdvanceExactPlayback(_replayTimeMs + delta);
+            long scaledDelta = ReplayWatchNavigation.ScaleElapsed(delta, _playbackSpeed, ref _playbackScaleRemainder);
+            AdvanceExactPlayback(_replayTimeMs + scaledDelta);
         }
 
         private void Step()
@@ -519,6 +566,8 @@ namespace StandaloneBaseball
             _nextExactEventIndex = 0;
             _replayTimeMs = Math.Max(0, _replay.StartingState?.TimeMs ?? 0);
             _lastExactFrameTimeMs = _replayTimeMs - 1;
+            _lastClockMilliseconds = 0;
+            _playbackScaleRemainder = 0;
             _playedCueKeys.Clear();
             foreach (LaunchSoundPlayer player in _replayAudioPlayers)
                 player.Dispose();
@@ -550,6 +599,8 @@ namespace StandaloneBaseball
 
             if (_replay.Events.Count == 0 && _replay.PlayLog.Count > 0)
                 _playText.Text = string.Join(Environment.NewLine, _replay.PlayLog);
+
+            UpdateNavigationControls();
         }
 
         private void AdvanceExactPlayback(long targetTimeMs)
@@ -567,7 +618,7 @@ namespace StandaloneBaseball
                 {
                     if (_nextExactEventIndex >= _replay.Events.Count)
                     {
-                        ApplyExactState(_replay.FinalState, null, isFinalEvent: true);
+                        ApplyFinalExactState(preserveRenderFrame: true);
                         StopExactPlayback();
                         break;
                     }
@@ -596,11 +647,18 @@ namespace StandaloneBaseball
                     break;
 
                 ApplyExactState(_activeExactEvent.After, _activeExactEvent,
-                    isFinalEvent: _nextExactEventIndex >= _replay.Events.Count);
+                    isFinalEvent: _nextExactEventIndex >= _replay.Events.Count,
+                    preserveRenderFrame: true);
                 _activeExactEvent = null;
             }
 
             _replayTimeMs = targetTimeMs;
+            UpdateNavigationControls();
+        }
+
+        private void ApplyFinalExactState(bool preserveRenderFrame = false)
+        {
+            ApplyExactState(_replay.FinalState, null, isFinalEvent: true, preserveRenderFrame: preserveRenderFrame);
         }
 
         private void StopExactPlayback()
@@ -673,6 +731,115 @@ namespace StandaloneBaseball
             _basesLabel.Text = BaseText(replayEvent.Bases);
 
             AppendEventText(replayEvent);
+            UpdateNavigationControls();
+        }
+
+        private Button ReplayButton(string name, string text, string accessibleName, int tabIndex, Action action)
+        {
+            var button = new Button
+            {
+                Name = name,
+                Text = text,
+                AutoSize = true,
+                AccessibleName = accessibleName,
+                TabIndex = tabIndex
+            };
+            button.Click += (s, e) => action();
+            return button;
+        }
+
+        private void ChangePlaybackSpeed()
+        {
+            if (_speedCombo.SelectedItem is not ReplayPlaybackSpeed speed)
+                return;
+
+            if (_replay.UsesTimedPlayback && _timer.Enabled)
+                PlaybackTick();
+
+            _playbackSpeed = speed;
+            _playbackScaleRemainder = 0;
+            if (!_replay.UsesTimedPlayback)
+                _timer.Interval = ReplayWatchNavigation.SnapshotInterval(speed);
+        }
+
+        private void JumpToPreviousEvent()
+            => SeekToEvent(ReplayWatchNavigation.PreviousEventIndex(_index, _replay.Events.Count));
+
+        private void JumpToNextEvent()
+            => SeekToEvent(ReplayWatchNavigation.NextEventIndex(_index, _replay.Events.Count));
+
+        private void JumpToPreviousInning()
+            => SeekToEvent(ReplayWatchNavigation.PreviousInningIndex(_replay.Events, _index));
+
+        private void JumpToNextInning()
+            => SeekToEvent(ReplayWatchNavigation.NextInningIndex(_replay.Events, _index));
+
+        private void SeekToEvent(int targetIndex)
+        {
+            if (targetIndex < -1 || targetIndex >= _replay.Events.Count || targetIndex == _index)
+                return;
+
+            ResetReplay();
+            if (targetIndex < 0)
+                return;
+
+            if (_replay.UsesTimedPlayback)
+                RebuildTimedReplay(targetIndex);
+            else
+                RebuildSnapshotReplay(targetIndex);
+            UpdateNavigationControls();
+        }
+
+        private void RebuildTimedReplay(int targetIndex)
+        {
+            foreach (int eventIndex in ReplayWatchNavigation.RebuildEventIndexes(targetIndex, _replay.Events.Count))
+            {
+                ReplayEvent replayEvent = _replay.Events[eventIndex];
+                _index = eventIndex;
+                _nextExactEventIndex = eventIndex + 1;
+                AppendEventText(replayEvent);
+                if (eventIndex < targetIndex)
+                    ApplyExactState(replayEvent.After, replayEvent, isFinalEvent: false);
+            }
+
+            ReplayEvent target = _replay.Events[targetIndex];
+            _activeExactEvent = null;
+            long frameTimeMs = target.TimeMs + Math.Max(0, target.DurationMs);
+            _replayTimeMs = Math.Max(frameTimeMs, target.After?.TimeMs ?? 0);
+            _lastExactFrameTimeMs = frameTimeMs;
+
+            _gameplay.ClearExactReplayFrame();
+            ReplayRenderFrame frame = ReplayExactEngine.CreateFrame(target, frameTimeMs);
+            HydrateReplayActors(frame);
+            _gameplay.ApplyExactReplayFrame(frame);
+
+            bool isTerminalEvent = ReplayWatchNavigation.IsTerminalEvent(targetIndex, _replay.Events.Count);
+            ApplyExactState(
+                isTerminalEvent ? _replay.FinalState : target.After,
+                isTerminalEvent ? null : target,
+                isFinalEvent: isTerminalEvent,
+                preserveRenderFrame: true);
+        }
+
+        private void RebuildSnapshotReplay(int targetIndex)
+        {
+            foreach (int eventIndex in ReplayWatchNavigation.RebuildEventIndexes(targetIndex, _replay.Events.Count))
+            {
+                _index = eventIndex;
+                DisplayEvent(_replay.Events[eventIndex],
+                    isFinalEvent: ReplayWatchNavigation.IsTerminalEvent(eventIndex, _replay.Events.Count));
+            }
+        }
+
+        private void UpdateNavigationControls()
+        {
+            if (_previousEventButton == null)
+                return;
+
+            _previousEventButton.Enabled = ReplayWatchNavigation.PreviousEventIndex(_index, _replay.Events.Count) != _index;
+            _nextEventButton.Enabled = ReplayWatchNavigation.NextEventIndex(_index, _replay.Events.Count) != _index;
+            _previousInningButton.Enabled = ReplayWatchNavigation.PreviousInningIndex(_replay.Events, _index) >= 0;
+            _nextInningButton.Enabled = ReplayWatchNavigation.NextInningIndex(_replay.Events, _index) >= 0;
         }
 
         private void AppendEventText(ReplayEvent replayEvent)
@@ -693,9 +860,15 @@ namespace StandaloneBaseball
                 _playText.AppendText("      -> " + advanced + Environment.NewLine);
         }
 
-        private void ApplyExactState(ReplayGameState? replayState, ReplayEvent? replayEvent, bool isFinalEvent)
+        private void ApplyExactState(
+            ReplayGameState? replayState,
+            ReplayEvent? replayEvent,
+            bool isFinalEvent,
+            bool preserveRenderFrame = false)
         {
             replayState ??= new ReplayGameState();
+            if (!preserveRenderFrame)
+                _gameplay.ClearExactReplayFrame();
             var state = new GameplayState
             {
                 Id = Guid.NewGuid(),
@@ -751,9 +924,9 @@ namespace StandaloneBaseball
                 return;
             state.AwayDhActive = dhState.AwayDhActive;
             state.HomeDhActive = dhState.HomeDhActive;
-            if (_playersBySourceId.TryGetValue(dhState.AwayDhPlayerId ?? "", out Player awayDh))
+            if (_playersBySourceId.TryGetValue(dhState.AwayDhPlayerId ?? "", out Player? awayDh))
                 state.AwayDesignatedHitterId = awayDh.Id;
-            if (_playersBySourceId.TryGetValue(dhState.HomeDhPlayerId ?? "", out Player homeDh))
+            if (_playersBySourceId.TryGetValue(dhState.HomeDhPlayerId ?? "", out Player? homeDh))
                 state.HomeDesignatedHitterId = homeDh.Id;
         }
 
@@ -784,7 +957,7 @@ namespace StandaloneBaseball
         {
             foreach (ReplayRenderActor actor in actors ?? Enumerable.Empty<ReplayRenderActor>())
             {
-                if (!_playersBySourceId.TryGetValue(actor.PlayerId ?? "", out Player player))
+                if (!_playersBySourceId.TryGetValue(actor.PlayerId ?? "", out Player? player))
                     continue;
                 actor.Player = player;
                 actor.Team = _awayTeam.Roster.Any(item => item.Id == player.Id) ? _awayTeam : _homeTeam;
@@ -794,12 +967,12 @@ namespace StandaloneBaseball
         private BaseRunner? ExactBaseRunner(ReplayBaseOccupant? occupant)
         {
             if (occupant == null || string.IsNullOrWhiteSpace(occupant.PlayerId) ||
-                !_playersBySourceId.TryGetValue(occupant.PlayerId, out Player player))
+                !_playersBySourceId.TryGetValue(occupant.PlayerId, out Player? player))
                 return null;
             Team team = _awayTeam.Roster.Any(item => item.Id == player.Id) ? _awayTeam : _homeTeam;
             Guid responsiblePitcherId = Guid.Empty;
             if (!string.IsNullOrWhiteSpace(occupant.ResponsiblePitcherId) &&
-                _playersBySourceId.TryGetValue(occupant.ResponsiblePitcherId, out Player pitcher))
+                _playersBySourceId.TryGetValue(occupant.ResponsiblePitcherId, out Player? pitcher))
                 responsiblePitcherId = pitcher.Id;
             return new BaseRunner
             {
@@ -821,7 +994,7 @@ namespace StandaloneBaseball
         private string ExactBaseText(ReplayExactBases? bases)
         {
             string Name(ReplayBaseOccupant? occupant)
-                => occupant != null && _playersBySourceId.TryGetValue(occupant.PlayerId ?? "", out Player player)
+                => occupant != null && _playersBySourceId.TryGetValue(occupant.PlayerId ?? "", out Player? player)
                     ? player.Name
                     : "-";
             return "1B: " + Name(bases?.First) + "   2B: " + Name(bases?.Second) + "   3B: " + Name(bases?.Third);
@@ -868,7 +1041,7 @@ namespace StandaloneBaseball
         {
             if (replayPlayer == null)
                 return null;
-            if (!_playersByReplayId.TryGetValue(ReplayPlayerKey(replayPlayer), out Player player))
+            if (!_playersByReplayId.TryGetValue(ReplayPlayerKey(replayPlayer), out Player? player))
                 return null;
             Team team = _awayTeam.Roster.Any(p => p.Id == player.Id) ? _awayTeam : _homeTeam;
             return new BaseRunner
@@ -884,7 +1057,7 @@ namespace StandaloneBaseball
         {
             if (team == null || replayPlayer == null)
                 return 0;
-            if (!_playersByReplayId.TryGetValue(ReplayPlayerKey(team, replayPlayer), out Player player))
+            if (!_playersByReplayId.TryGetValue(ReplayPlayerKey(team, replayPlayer), out Player? player))
                 return 0;
             var order = team.BaseLineup.BattingOrder.OrderBy(s => s.BattingOrder).ToList();
             int index = order.FindIndex(s => s.PlayerId == player.Id);
@@ -895,7 +1068,7 @@ namespace StandaloneBaseball
         {
             if (team == null || replayPlayer == null)
                 return 0;
-            if (!_playersByReplayId.TryGetValue(ReplayPlayerKey(team, replayPlayer), out Player player))
+            if (!_playersByReplayId.TryGetValue(ReplayPlayerKey(team, replayPlayer), out Player? player))
                 return 0;
             var staff = LineupEngine.GetPitchingStaff(team).ToList();
             int index = staff.FindIndex(p => p.Id == player.Id);
@@ -904,7 +1077,7 @@ namespace StandaloneBaseball
 
         private string ReplayModeLabel(ReplayEvent? replayEvent)
         {
-            string result = replayEvent?.Result?.Outcome;
+            string? result = replayEvent?.Result?.Outcome;
             if (string.IsNullOrWhiteSpace(result))
                 result = replayEvent?.EventType;
             return StateText(replayEvent) + (string.IsNullOrWhiteSpace(result) ? "" : " - " + result);
@@ -1060,10 +1233,119 @@ namespace StandaloneBaseball
         private static string FirstPosition(Player player)
         {
             string value = player?.Positions ?? "";
-            string first = value.Split(new[] { '/', ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            string? first = value.Split(new[] { '/', ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(NormalizePosition)
                 .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p));
             return string.IsNullOrWhiteSpace(first) ? "OF" : first;
+        }
+    }
+
+    internal sealed class ReplayPlaybackSpeed
+    {
+        public ReplayPlaybackSpeed(string label, int numerator, int denominator)
+        {
+            Label = label;
+            Numerator = numerator;
+            Denominator = denominator;
+        }
+
+        public string Label { get; }
+        public int Numerator { get; }
+        public int Denominator { get; }
+
+        public override string ToString() => Label;
+    }
+
+    internal static class ReplayWatchNavigation
+    {
+        private const int SnapshotBaseIntervalMs = 1200;
+
+        public static IReadOnlyList<ReplayPlaybackSpeed> PlaybackSpeeds { get; } = new[]
+        {
+            new ReplayPlaybackSpeed("0.5x", 1, 2),
+            new ReplayPlaybackSpeed("1x", 1, 1),
+            new ReplayPlaybackSpeed("2x", 2, 1),
+            new ReplayPlaybackSpeed("4x", 4, 1)
+        };
+
+        public static ReplayPlaybackSpeed NormalSpeed => PlaybackSpeeds[1];
+
+        public static long ScaleElapsed(long elapsedMs, ReplayPlaybackSpeed speed, ref long remainder)
+        {
+            if (elapsedMs <= 0)
+                return 0;
+
+            speed ??= NormalSpeed;
+            long scaled = elapsedMs * speed.Numerator + remainder;
+            long result = scaled / speed.Denominator;
+            remainder = scaled % speed.Denominator;
+            return result;
+        }
+
+        public static int SnapshotInterval(ReplayPlaybackSpeed speed)
+        {
+            speed ??= NormalSpeed;
+            return Math.Max(15, SnapshotBaseIntervalMs * speed.Denominator / speed.Numerator);
+        }
+
+        public static int PreviousEventIndex(int currentIndex, int eventCount)
+        {
+            if (eventCount <= 0)
+                return -1;
+            return Math.Max(-1, Math.Min(currentIndex, eventCount - 1) - 1);
+        }
+
+        public static int NextEventIndex(int currentIndex, int eventCount)
+        {
+            if (eventCount <= 0)
+                return -1;
+            return Math.Min(eventCount - 1, Math.Max(-1, currentIndex) + 1);
+        }
+
+        public static int PreviousInningIndex(IReadOnlyList<ReplayEvent> events, int currentIndex)
+        {
+            if (events == null || events.Count == 0 || currentIndex <= 0)
+                return -1;
+
+            currentIndex = Math.Min(currentIndex, events.Count - 1);
+            int currentInning = events[currentIndex]?.Inning ?? 0;
+            int previous = currentIndex - 1;
+            while (previous >= 0 && (events[previous]?.Inning ?? 0) == currentInning)
+                previous--;
+            if (previous < 0)
+                return -1;
+
+            int previousInning = events[previous]?.Inning ?? 0;
+            while (previous > 0 && (events[previous - 1]?.Inning ?? 0) == previousInning)
+                previous--;
+            return previous;
+        }
+
+        public static int NextInningIndex(IReadOnlyList<ReplayEvent> events, int currentIndex)
+        {
+            if (events == null || events.Count == 0)
+                return -1;
+            if (currentIndex < 0)
+                return 0;
+
+            currentIndex = Math.Min(currentIndex, events.Count - 1);
+            int currentInning = events[currentIndex]?.Inning ?? 0;
+            for (int index = currentIndex + 1; index < events.Count; index++)
+            {
+                if ((events[index]?.Inning ?? 0) != currentInning)
+                    return index;
+            }
+            return -1;
+        }
+
+        public static bool IsTerminalEvent(int eventIndex, int eventCount)
+            => eventCount > 0 && eventIndex == eventCount - 1;
+
+        public static IReadOnlyList<int> RebuildEventIndexes(int targetIndex, int eventCount)
+        {
+            if (eventCount <= 0 || targetIndex < 0 || targetIndex >= eventCount)
+                return Array.Empty<int>();
+            return Enumerable.Range(0, targetIndex + 1).ToArray();
         }
     }
 }

@@ -20,7 +20,7 @@ namespace StandaloneBaseball
         private readonly Button _continueButton;
         private readonly List<Player> _awayLineup;
         private readonly List<Player> _homeLineup;
-        private Image _flagsImage;
+        private Image? _flagsImage;
         private int _homePlayersOnLine;
         private bool _anthemStarted;
 
@@ -122,7 +122,7 @@ namespace StandaloneBaseball
             Close();
         }
 
-        private void PaintCeremony(object sender, PaintEventArgs e)
+        private void PaintCeremony(object? sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -311,7 +311,7 @@ namespace StandaloneBaseball
             return File.Exists(path) ? path : "";
         }
 
-        private static Image LoadImage(string path)
+        private static Image? LoadImage(string path)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return null;

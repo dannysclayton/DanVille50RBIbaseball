@@ -47,8 +47,8 @@ namespace StandaloneBaseball
 
     internal sealed class GameplayRenderingGameState
     {
-        public Team AwayTeam { get; private set; }
-        public Team HomeTeam { get; private set; }
+        public Team AwayTeam { get; private set; } = new Team();
+        public Team HomeTeam { get; private set; } = new Team();
         public int AwayScore { get; set; }
         public int HomeScore { get; set; }
         public int Inning { get; set; } = 1;
@@ -602,7 +602,7 @@ namespace StandaloneBaseball
 
             return ids
                 .Select(id => BattingTeam.Roster.FirstOrDefault(p => p != null && p.Id == id))
-                .Where(p => p != null)
+                .OfType<Player>()
                 .ToList();
         }
 

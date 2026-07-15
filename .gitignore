@@ -33,3 +33,6 @@ release/local-v2.0/
 *.mov
 !StandaloneBaseball/Assets/Trophies/baseball-mvp-trophy-template.jpg
 !release/public-v1.0/Assets/Trophies/baseball-mvp-trophy-template.jpg
+!release/public-v1.0/Assets/Loading Screens/season_opening_baseball_is_back.jpg
+!release/public-v1.0/Assets/Loading Screens/season_opening_danville50.png
+!release/public-v1.0/Assets/Loading Screens/doubleheader_game_two.jpg

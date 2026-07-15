@@ -66,7 +66,7 @@ namespace StandaloneBaseball
             int outs,
             int scoreDifferential,
             Player catcher,
-            Player targetFielder,
+            Player? targetFielder,
             PitchEscapeKind kind,
             bool forcedAdvance = false)
         {
@@ -114,7 +114,7 @@ namespace StandaloneBaseball
             return result;
         }
 
-        private static int PitcherControl(Player pitcher)
+        private static int PitcherControl(Player? pitcher)
             => pitcher == null
                 ? 45
                 : (Rating(pitcher, p => p.Pitching, 50) + Rating(pitcher, p => p.Accuracy, 50)) / 2;
@@ -131,7 +131,7 @@ namespace StandaloneBaseball
                 _ => 0
             };
 
-        private static int Rating(Player player, Func<Player, int> selector, int fallback)
+        private static int Rating(Player? player, Func<Player, int> selector, int fallback)
             => player == null ? fallback : InjuryEngine.EffectiveRating(player, selector(player));
     }
 }

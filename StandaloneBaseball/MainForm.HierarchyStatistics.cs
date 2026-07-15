@@ -18,18 +18,18 @@ namespace StandaloneBaseball
         private sealed class HierarchyStatisticsPage
         {
             public string Level { get; set; } = "";
-            public ComboBox EntityCombo { get; set; }
-            public ComboBox ScopeCombo { get; set; }
-            public ComboBox SeasonCombo { get; set; }
-            public DataGridView TeamGrid { get; set; }
-            public DataGridView PlayerGrid { get; set; }
-            public DataGridView LeadersGrid { get; set; }
+            public required ComboBox EntityCombo { get; set; }
+            public required ComboBox ScopeCombo { get; set; }
+            public required ComboBox SeasonCombo { get; set; }
+            public required DataGridView TeamGrid { get; set; }
+            public required DataGridView PlayerGrid { get; set; }
+            public required DataGridView LeadersGrid { get; set; }
         }
 
         private sealed class PlayerStatContext
         {
-            public Team Team { get; set; }
-            public PlayerSeasonStatLine Stats { get; set; }
+            public required Team Team { get; set; }
+            public required PlayerSeasonStatLine Stats { get; set; }
         }
 
         private readonly Dictionary<string, HierarchyStatisticsPage> _hierarchyStatisticsPages =
@@ -50,7 +50,16 @@ namespace StandaloneBaseball
 
         private void BuildHierarchyStatisticsPage(TabPage tab, string level)
         {
-            var controls = new HierarchyStatisticsPage { Level = level };
+            var controls = new HierarchyStatisticsPage
+            {
+                Level = level,
+                EntityCombo = new ComboBox { Width = 245, DropDownStyle = ComboBoxStyle.DropDownList },
+                ScopeCombo = new ComboBox { Width = 105, DropDownStyle = ComboBoxStyle.DropDownList },
+                SeasonCombo = new ComboBox { Width = 190, DropDownStyle = ComboBoxStyle.DropDownList },
+                TeamGrid = CreateReadOnlyGrid(),
+                PlayerGrid = CreateReadOnlyGrid(),
+                LeadersGrid = CreateReadOnlyGrid()
+            };
             _hierarchyStatisticsPages[level] = controls;
 
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Padding = new Padding(8) };
@@ -59,25 +68,19 @@ namespace StandaloneBaseball
 
             var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoScroll = true };
             bar.Controls.Add(new Label { Text = level, AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(4, 10, 8, 0) });
-            controls.EntityCombo = new ComboBox { Width = 245, DropDownStyle = ComboBoxStyle.DropDownList };
             controls.EntityCombo.SelectedIndexChanged += (s, e) => RefreshHierarchyStatisticsPage(controls);
             bar.Controls.Add(controls.EntityCombo);
             bar.Controls.Add(new Label { Text = "Scope", AutoSize = true, Margin = new Padding(12, 10, 4, 0) });
-            controls.ScopeCombo = new ComboBox { Width = 105, DropDownStyle = ComboBoxStyle.DropDownList };
             controls.ScopeCombo.Items.AddRange(new object[] { "Season", "Playoffs", "Career", "All-Time" });
             controls.ScopeCombo.SelectedIndex = 0;
             controls.ScopeCombo.SelectedIndexChanged += (s, e) => RefreshHierarchyStatisticsPage(controls);
             bar.Controls.Add(controls.ScopeCombo);
             bar.Controls.Add(new Label { Text = "Season", AutoSize = true, Margin = new Padding(12, 10, 4, 0) });
-            controls.SeasonCombo = new ComboBox { Width = 190, DropDownStyle = ComboBoxStyle.DropDownList };
             controls.SeasonCombo.SelectedIndexChanged += (s, e) => RefreshHierarchyStatisticsPage(controls);
             bar.Controls.Add(controls.SeasonCombo);
 
-            controls.TeamGrid = CreateReadOnlyGrid();
             AddHierarchyTeamColumns(controls.TeamGrid);
-            controls.PlayerGrid = CreateReadOnlyGrid();
             AddHierarchyPlayerColumns(controls.PlayerGrid);
-            controls.LeadersGrid = CreateReadOnlyGrid();
             AddGridColumn(controls.LeadersGrid, "Type", 90);
             AddGridColumn(controls.LeadersGrid, "Category", 180);
             AddGridColumn(controls.LeadersGrid, "Leader", 190);
@@ -319,7 +322,7 @@ namespace StandaloneBaseball
 
         private void AddHierarchyTeamRow(DataGridView grid, Team team, TeamSeasonStatLine stats, string scope)
         {
-            TeamPlacement placement = FindTeamPlacement(team.Id);
+            TeamPlacement? placement = FindTeamPlacement(team.Id);
             grid.Rows.Add(
                 team.DisplayName, placement?.Conference?.Name ?? "", placement?.Region?.Name ?? "", placement?.District?.Name ?? "", scope,
                 stats.Games, stats.Wins, stats.Losses, stats.Ties,

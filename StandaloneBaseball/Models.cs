@@ -29,7 +29,7 @@ namespace StandaloneBaseball
             }
         }
 
-        public int SaveSchemaVersion { get; set; } = 1;
+        public int SaveSchemaVersion { get; set; } = LeagueStore.CurrentSaveSchemaVersion;
         public string Name { get; set; } = "New Baseball Universe";
         public string OwnerFullName { get; set; } = "";
         public string AssetLibraryPath { get; set; } = DefaultAssetLibraryPath;
@@ -55,7 +55,7 @@ namespace StandaloneBaseball
         public Guid AwayTeamId { get; set; }
         public Guid HomeTeamId { get; set; }
         public string Label { get; set; } = "";
-        public GameplayState State { get; set; }
+        public GameplayState? State { get; set; }
     }
 
     public sealed class CoachInboxMessage
@@ -442,14 +442,14 @@ namespace StandaloneBaseball
             });
         }
 
-        public TeamUniformSet ActiveUniform(TeamUniformCategory category)
+        public TeamUniformSet? ActiveUniform(TeamUniformCategory category)
         {
             UniformSets ??= new List<TeamUniformSet>();
             return UniformSets.FirstOrDefault(u => u.Category == category && u.Active)
                 ?? UniformSets.FirstOrDefault(u => u.Category == category);
         }
 
-        public TeamUniformSet UniformById(Guid? uniformId)
+        public TeamUniformSet? UniformById(Guid? uniformId)
         {
             if (!uniformId.HasValue || uniformId.Value == Guid.Empty)
                 return null;
@@ -457,7 +457,7 @@ namespace StandaloneBaseball
             return UniformSets.FirstOrDefault(u => u.Id == uniformId.Value);
         }
 
-        public TeamUniformSet DefaultUniform()
+        public TeamUniformSet? DefaultUniform()
             => ActiveUniform(TeamUniformCategory.Home)
                 ?? ActiveUniform(TeamUniformCategory.Visitor)
                 ?? UniformSets?.FirstOrDefault();
@@ -715,7 +715,7 @@ namespace StandaloneBaseball
         public List<PlayoffSeries> Playoffs { get; set; } = new List<PlayoffSeries>();
         public List<SeasonRankingPoll> RankingPolls { get; set; } = new List<SeasonRankingPoll>();
         public List<SeasonAllStarSelection> AllStarSelections { get; set; } = new List<SeasonAllStarSelection>();
-        public SeasonAllStarGame AllStarGame { get; set; }
+        public SeasonAllStarGame? AllStarGame { get; set; }
         public List<SeasonAwardSelection> Awards { get; set; } = new List<SeasonAwardSelection>();
         public Dictionary<Guid, PitcherUsageState> PitcherUsage { get; set; } = new Dictionary<Guid, PitcherUsageState>();
         public Guid? ChampionTeamId { get; set; }

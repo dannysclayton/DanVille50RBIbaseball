@@ -7,8 +7,8 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - Standalone Windows Forms baseball game/editor built on .NET 8.
 - Version 1.0 release metadata with `DanVille50RBIbaseball.exe` as the application executable.
 - No runtime dependency on the original NES ROM.
-- League saves use readable `.dbaseball.json` files.
-- Committed games autosave immediately, while season and playoff batch simulations autosave after the batch; a new dynasty requests its first save location when needed.
+- League saves use readable schema-v2 `.dbaseball.json` files with ordered legacy migration, future-version validation, atomic replacement, rotating backups, and recovery.
+- Committed games autosave immediately, season and playoff batch simulations autosave after the batch, and roster, schedule, award, and Hall of Fame changes use a coalesced autosave; a new dynasty requests its first save location when needed.
 - League-specific assets are stored beside the save in a portable `[league name].assets` folder.
 - Asset paths are normalized so imported team files can travel with the league instead of pointing back to the original import library.
 - App-level assets are copied from the `Assets` folder during build.
@@ -573,7 +573,7 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - All-Star stats are tracked separately.
 - Career All-Star stats are tracked.
 - Export support exists for stat pages and team pages.
-- Exports are saved in Excel-compatible or Word-compatible document formats.
+- Exports are native Open XML Excel and Word documents; Excel preserves typed numeric, Boolean, and date/time cells for native sorting and formulas.
 
 ## Tracked Batting Stats
 
@@ -717,6 +717,7 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - Results dialog shows the winning team's logo.
 - Results dialog shows the updated win-loss record.
 - Results dialog includes a box score recap.
+- Results dialog includes sortable batting and pitching tables for both teams with every tracked player game field.
 - Every dynasty save updates each participating team's `Line Up` and `Game Results` asset folders with native Word documents for committed games.
 - Completed-game reports include updated records at that point in the season, inning line scores, runs/hits/errors/LOB, pitcher decisions, saves, holds, player of the game, full offensive/pitching/defensive lines, and inning-grouped play-by-play.
 - The Season Game Library can export lineup forms, game-result forms, or both for one team, selected teams, or league-wide; users can limit exports to selected games or use every displayed game.
@@ -734,6 +735,8 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - Imported files are copied into the managed library, duplicate names are preserved with numbered filenames, malformed JSON is rejected with a visible error, and incomplete-but-readable files remain available for best-effort or snapshot playback.
 - A packaged editable schema-v2 replay template and `ExactReplaySchema.md` guide can be saved anywhere the user chooses.
 - Replay watcher form.
+- Replay controls include play/pause, reset, event step, 0.5x/1x/2x/4x speed, and previous/next event and inning navigation.
+- Backward replay navigation deterministically resets and rebuilds gameplay state before resuming.
 - Replay files can be loaded from the replay folder.
 - Replay files support play-by-play data, teams, lineups, and game events.
 - Replay files can embed the complete home scoreboard template for exact presentation playback.

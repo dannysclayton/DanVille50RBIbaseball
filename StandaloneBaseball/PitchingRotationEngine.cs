@@ -189,7 +189,7 @@ namespace StandaloneBaseball
             team.PitchingPlan.NextStarterSlot = (index + 1) % team.PitchingPlan.StarterRotationIds.Count;
         }
 
-        public static Player AllStarPitcherForInning(Team team, int inning)
+        public static Player? AllStarPitcherForInning(Team team, int inning)
         {
             if (team?.PitchingPlan?.UseAllStarPitchingRules != true || inning <= 0)
                 return null;

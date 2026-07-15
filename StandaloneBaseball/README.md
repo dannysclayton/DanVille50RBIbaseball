@@ -134,7 +134,7 @@ Generate and validate the Cobertura coverage report:
 .\run-coverage.ps1
 ```
 
-The script fails if the report is missing, contains no instrumented lines, or falls below the regression floors. It writes the report to `TestResults\Coverage\coverage.cobertura.xml`. The July 2026 baseline is 142 passing tests with 42.19% line, 30.35% branch, and 60.23% method coverage.
+The script fails if the report is missing, contains no instrumented lines, or falls below the regression floors. It writes the report to `TestResults\Coverage\coverage.cobertura.xml`. The July 2026 baseline is 190 passing tests with 45.85% line, 33.18% branch, and 63.24% method coverage.
 
 The suite includes deterministic game-engine and simulation checks, complete in-progress game state round trips, backup recovery, 2/4/8-conference playoff advancement, injury and fatigue rules, rankings, awards, Hall of Fame scoring, and championship lifecycle behavior.
 

@@ -86,7 +86,7 @@ namespace StandaloneBaseball
 
         private bool TryDrawPresetBackground(Graphics g, Rectangle bounds, BaseballFieldPreset preset)
         {
-            string path = ResolvePresetAssetPath(preset);
+            string? path = ResolvePresetAssetPath(preset);
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return false;
 
@@ -372,7 +372,7 @@ namespace StandaloneBaseball
 
             foreach (var overlay in preset.Overlays)
             {
-                string path = ResolveAssetPath(overlay.AssetPath);
+                string? path = ResolveAssetPath(overlay.AssetPath);
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                     continue;
 
@@ -573,7 +573,7 @@ namespace StandaloneBaseball
 
         private void DrawSpriteOrMarker(Graphics g, float x, float y, float radius, Color color, string label, bool highlighted, Player? player, Team? team)
         {
-            Image sheet = LoadSpriteSheet(player, team);
+            Image? sheet = LoadSpriteSheet(player, team);
             if (sheet == null)
             {
                 DrawMarker(g, x, y, radius, color, label, highlighted);
@@ -602,7 +602,7 @@ namespace StandaloneBaseball
 
         private Image? LoadSpriteSheet(Player? player, Team? team)
         {
-            string path = FirstExistingPath(player?.SpriteSheetPath, team?.SpriteSheetPath);
+            string? path = FirstExistingPath(player?.SpriteSheetPath, team?.SpriteSheetPath);
             if (string.IsNullOrWhiteSpace(path))
                 return null;
 

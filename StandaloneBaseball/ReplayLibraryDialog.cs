@@ -194,14 +194,14 @@ namespace StandaloneBaseball
 
         private void UpdateButtons()
         {
-            ReplayLibraryItem item = SelectedItem();
+            ReplayLibraryItem? item = SelectedItem();
             _watchButton.Enabled = item?.Valid == true;
             _removeButton.Enabled = item != null;
         }
 
         private void AcceptSelection()
         {
-            ReplayLibraryItem item = SelectedItem();
+            ReplayLibraryItem? item = SelectedItem();
             if (item?.Valid != true)
                 return;
             SelectedReplayPath = item.Path;
@@ -278,7 +278,7 @@ namespace StandaloneBaseball
 
         private void RemoveSelected()
         {
-            ReplayLibraryItem item = SelectedItem();
+            ReplayLibraryItem? item = SelectedItem();
             if (item == null)
                 return;
             if (MessageBox.Show(this,

@@ -5,6 +5,12 @@ namespace StandaloneBaseball.Tests;
 public sealed class LeagueStoreRecoveryTests
 {
     [Fact]
+    public void NewLeague_UsesCurrentSaveSchemaVersion()
+    {
+        Assert.Equal(LeagueStore.CurrentSaveSchemaVersion, new LeagueFile().SaveSchemaVersion);
+    }
+
+    [Fact]
     public void NewLeague_DoesNotDefaultToADeveloperMachineAssetLibrary()
     {
         var league = new LeagueFile();
@@ -100,6 +106,82 @@ public sealed class LeagueStoreRecoveryTests
     }
 
     [Fact]
+    public void Load_MigratesVersion1CoachHallEntryToCurrentSchema()
+    {
+        string directory = NewTestDirectory();
+        string path = Path.Combine(directory, "version-one" + LeagueStore.Extension);
+        Guid coachId = Guid.NewGuid();
+        try
+        {
+            File.WriteAllText(path, $$"""
+                {
+                  "SaveSchemaVersion": 1,
+                  "Name": "Legacy Dynasty",
+                  "HallOfFameEntries": [
+                    {
+                      "EntryType": "Coach",
+                      "PlayerId": "{{coachId}}",
+                      "PlayerName": "Legacy Coach"
+                    }
+                  ]
+                }
+                """);
+
+            LeagueFile league = LeagueStore.Load(path);
+
+            Assert.Equal(LeagueStore.CurrentSaveSchemaVersion, league.SaveSchemaVersion);
+            HallOfFameEntry entry = Assert.Single(league.HallOfFameEntries);
+            Assert.Equal(coachId, entry.CoachId);
+            Assert.Equal("Legacy Coach", entry.CoachName);
+        }
+        finally
+        {
+            DeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public void Load_TreatsMissingSchemaVersionAsVersion1AndRunsMigrations()
+    {
+        string directory = NewTestDirectory();
+        string path = Path.Combine(directory, "unversioned" + LeagueStore.Extension);
+        try
+        {
+            File.WriteAllText(path, "{\"Name\":\"Unversioned Dynasty\",\"InboxMessages\":null}");
+
+            LeagueFile league = LeagueStore.Load(path);
+
+            Assert.Equal(LeagueStore.CurrentSaveSchemaVersion, league.SaveSchemaVersion);
+            Assert.NotNull(league.InboxMessages);
+        }
+        finally
+        {
+            DeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_RejectsSchemaFromNewerApplicationVersion()
+    {
+        string directory = NewTestDirectory();
+        string path = Path.Combine(directory, "future" + LeagueStore.Extension);
+        try
+        {
+            File.WriteAllText(path, "{\"SaveSchemaVersion\":" + (LeagueStore.CurrentSaveSchemaVersion + 1) + "}");
+
+            bool loaded = LeagueStore.TryLoad(path, out LeagueFile league, out string error);
+
+            Assert.False(loaded);
+            Assert.Null(league);
+            Assert.Contains("supports up to version", error);
+        }
+        finally
+        {
+            DeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
     public void GetBackups_FindsValidRecoveryCopiesWhenPrimaryIsDamaged()
     {
         string directory = NewTestDirectory();
@@ -126,6 +208,39 @@ public sealed class LeagueStoreRecoveryTests
             var validBackup = backups.First(backup => backup.IsValid);
             Assert.True(LeagueStore.TryLoad(validBackup.Path, out var recovered, out string error), error);
             Assert.Equal("Recoverable Dynasty", recovered.Name);
+        }
+        finally
+        {
+            DeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public void TryLoadWithRecovery_UsesNewestValidBackupWhenPrimaryIsDamaged()
+    {
+        string directory = NewTestDirectory();
+        string path = Path.Combine(directory, "recover-latest" + LeagueStore.Extension);
+        try
+        {
+            var league = new LeagueFile { Name = "Version 1" };
+            LeagueStore.Save(path, league);
+            league.Name = "Version 2";
+            LeagueStore.Save(path, league);
+            league.Name = "Version 3";
+            LeagueStore.Save(path, league);
+            File.WriteAllText(path, "damaged primary");
+
+            bool loaded = LeagueStore.TryLoadWithRecovery(
+                path,
+                out LeagueFile recovered,
+                out string loadedPath,
+                out string primaryError);
+
+            Assert.True(loaded, primaryError);
+            Assert.Equal("Version 2", recovered.Name);
+            Assert.NotEqual(Path.GetFullPath(path), loadedPath);
+            Assert.EndsWith(".bak", loadedPath, StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrWhiteSpace(primaryError));
         }
         finally
         {

@@ -114,6 +114,7 @@ public sealed class PackagingMetadataTests
         string localInstaller = File.ReadAllText(Path.Combine(root, "packaging", "installer", "LocalV2.iss"));
         string publicScript = File.ReadAllText(Path.Combine(root, "publish-public.ps1"));
         string localScript = File.ReadAllText(Path.Combine(root, "publish-local-v2.ps1"));
+        string gitIgnore = File.ReadAllText(Path.Combine(root, ".gitignore"));
 
         Assert.Contains("5A0D488D-579A-49D8-BD72-1B2AF1688610", publicInstaller);
         Assert.Contains("B9271E06-CBA7-499B-A409-FC0861DEB213", localInstaller);
@@ -125,6 +126,58 @@ public sealed class PackagingMetadataTests
         Assert.Contains("Invoke-AuthenticodeSigning.ps1", localScript);
         Assert.Contains("Assets/Trophies/baseball-mvp-trophy-template.jpg", publicScript);
         Assert.Contains("Assets\\Templates\\Lineup Card Template.docx", publicScript);
+        Assert.Contains("[switch]$UpdateCheckedInRelease", publicScript);
+        Assert.Contains("release\\public-v1.0", publicScript);
+        Assert.Contains("!release/public-v1.0/Assets/Loading Screens/season_opening_baseball_is_back.jpg", gitIgnore);
+        Assert.Contains("!release/public-v1.0/Assets/Loading Screens/season_opening_danville50.png", gitIgnore);
+        Assert.Contains("!release/public-v1.0/Assets/Loading Screens/doubleheader_game_two.jpg", gitIgnore);
+    }
+
+    [Fact]
+    public void PublicReleaseRefresh_StagesAndAuditsBeforeAtomicSwapWithRollback()
+    {
+        string projectPath = FindProjectFile();
+        string root = Directory.GetParent(Path.GetDirectoryName(projectPath)!)!.FullName;
+        string script = File.ReadAllText(Path.Combine(root, "publish-public.ps1"));
+        int functionStart = script.IndexOf("function Update-CheckedInReleaseAtomically", StringComparison.Ordinal);
+        int functionEnd = script.IndexOf("$publishPath = Get-SafeArtifactPath", functionStart, StringComparison.Ordinal);
+
+        Assert.True(functionStart >= 0, "Atomic checked-in release refresh function is missing.");
+        Assert.True(functionEnd > functionStart, "Atomic checked-in release refresh function is incomplete.");
+        string refresh = script[functionStart..functionEnd];
+
+        Assert.Contains("release\\public-v1.0.staging", script);
+        Assert.Contains("release\\public-v1.0.backup", script);
+        Assert.Contains("Assert-FixedReleaseRefreshPath $checkedInReleaseStagingPath", refresh);
+        Assert.Contains("Assert-FixedReleaseRefreshPath $Path", script);
+        Assert.Contains("Refusing to modify non-fixed release refresh path", script);
+
+        string copyToStaging = "Copy-Item -Destination $checkedInReleaseStagingPath -Recurse -Force";
+        string auditStaging = "Assert-PublicReleaseArtifact $checkedInReleaseStagingPath";
+        string verifyStaging = "Assert-ChecksumManifest $checkedInReleaseStagingPath";
+        string checksumStaging = "Write-ChecksumManifest $checkedInReleaseStagingPath";
+        string backupRelease = "Move-Item -LiteralPath $checkedInReleasePath -Destination $checkedInReleaseBackupPath";
+        string installStaging = "Move-Item -LiteralPath $checkedInReleaseStagingPath -Destination $checkedInReleasePath";
+
+        AssertInOrder(refresh, copyToStaging, auditStaging, verifyStaging, checksumStaging,
+            backupRelease, installStaging);
+        Assert.Contains("catch {", refresh);
+        Assert.Contains("$swapCompleted = $false", refresh);
+        Assert.Contains("Move-Item -LiteralPath $checkedInReleaseBackupPath -Destination $checkedInReleasePath", refresh);
+        Assert.Contains("finally {", refresh);
+        Assert.Contains("Remove-FixedReleaseRefreshDirectory $checkedInReleaseStagingPath", refresh);
+        Assert.Contains("Remove-FixedReleaseRefreshDirectory $checkedInReleaseBackupPath", refresh);
+    }
+
+    private static void AssertInOrder(string value, params string[] expected)
+    {
+        int previous = -1;
+        foreach (string item in expected)
+        {
+            int current = value.IndexOf(item, previous + 1, StringComparison.Ordinal);
+            Assert.True(current > previous, $"Expected '{item}' after the preceding atomic refresh step.");
+            previous = current;
+        }
     }
 
     private static string FindProjectFile()

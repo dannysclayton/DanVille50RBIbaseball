@@ -83,7 +83,7 @@ namespace StandaloneBaseball
             foreach (var player in team.Roster.Where(p => p != null))
             {
                 player.UnqualifiedPositionGameStreaks ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                if (!assignedByPlayer.TryGetValue(player.Id, out string assigned) ||
+                if (!assignedByPlayer.TryGetValue(player.Id, out string? assigned) ||
                     string.Equals(assigned, "DH", StringComparison.OrdinalIgnoreCase) ||
                     HasPosition(player, assigned))
                 {

@@ -15,9 +15,9 @@ namespace StandaloneBaseball
         public ReplayRules Rules { get; set; } = new ReplayRules();
         public ReplayTeams Teams { get; set; } = new ReplayTeams();
         public ReplayAssets Assets { get; set; } = new ReplayAssets();
-        public ReplayGameState StartingState { get; set; }
+        public ReplayGameState? StartingState { get; set; }
         public List<ReplayEvent> Events { get; set; } = new List<ReplayEvent>();
-        public ReplayGameState FinalState { get; set; }
+        public ReplayGameState? FinalState { get; set; }
         public ReplayValidation Validation { get; set; } = new ReplayValidation();
         public List<string> PlayLog { get; set; } = new List<string>();
         public List<string> DetailedPlayLog { get; set; } = new List<string>();
@@ -114,7 +114,7 @@ namespace StandaloneBaseball
         public string PrimaryColor { get; set; } = "";
         public string SecondaryColor { get; set; } = "";
         public string UniformKey { get; set; } = "";
-        public TeamScoreboardTemplate ScoreboardTemplate { get; set; }
+        public TeamScoreboardTemplate? ScoreboardTemplate { get; set; }
         public ReplayRecord RecordBeforeGame { get; set; } = new ReplayRecord();
         public int Score { get; set; }
         public int Hits { get; set; }
@@ -136,7 +136,7 @@ namespace StandaloneBaseball
     {
         public int Order { get; set; }
         public string Position { get; set; } = "";
-        public ReplayPlayer Player { get; set; }
+        public ReplayPlayer? Player { get; set; }
     }
 
     public sealed class ReplayPlayer
@@ -195,14 +195,14 @@ namespace StandaloneBaseball
         public List<string> RunnersAdvanced { get; set; } = new List<string>();
         public string OffensiveChoice { get; set; } = "";
         public string DefensiveChoice { get; set; } = "";
-        public ReplayGameState Before { get; set; }
-        public ReplayCommand Command { get; set; }
-        public ReplayAnimation Animation { get; set; }
+        public ReplayGameState? Before { get; set; }
+        public ReplayCommand? Command { get; set; }
+        public ReplayAnimation? Animation { get; set; }
         public List<ReplayAudioCue> Audio { get; set; } = new List<ReplayAudioCue>();
         public List<ReplayCutsceneCue> Cutscenes { get; set; } = new List<ReplayCutsceneCue>();
-        public ReplayAtBatResult Result { get; set; }
+        public ReplayAtBatResult? Result { get; set; }
         public List<ReplayRunnerAdvancement> RunnerAdvancements { get; set; } = new List<ReplayRunnerAdvancement>();
-        public ReplayGameState After { get; set; }
+        public ReplayGameState? After { get; set; }
         public ReplayValidation Validation { get; set; } = new ReplayValidation();
     }
 
@@ -256,9 +256,9 @@ namespace StandaloneBaseball
 
     public sealed class ReplayExactBases
     {
-        public ReplayBaseOccupant First { get; set; }
-        public ReplayBaseOccupant Second { get; set; }
-        public ReplayBaseOccupant Third { get; set; }
+        public ReplayBaseOccupant? First { get; set; }
+        public ReplayBaseOccupant? Second { get; set; }
+        public ReplayBaseOccupant? Third { get; set; }
     }
 
     public sealed class ReplayBaseOccupant
@@ -270,9 +270,9 @@ namespace StandaloneBaseball
 
     public sealed class ReplayCommand
     {
-        public ReplayPitchCommand Pitch { get; set; }
-        public ReplayBatterInput BatterInput { get; set; }
-        public ReplayStrategyCommand Strategy { get; set; }
+        public ReplayPitchCommand? Pitch { get; set; }
+        public ReplayBatterInput? BatterInput { get; set; }
+        public ReplayStrategyCommand? Strategy { get; set; }
         public string TeamId { get; set; } = "";
         public string SubstitutionType { get; set; } = "";
         public string OutPlayerId { get; set; } = "";
@@ -421,9 +421,9 @@ namespace StandaloneBaseball
     {
         public string StateHashBefore { get; set; } = "";
         public string StateHashAfter { get; set; } = "";
-        public ReplayScore ScoreAfter { get; set; }
+        public ReplayScore? ScoreAfter { get; set; }
         public int? OutsAfter { get; set; }
-        public ReplayValidationBases BasesAfter { get; set; }
+        public ReplayValidationBases? BasesAfter { get; set; }
         public Dictionary<string, int> PitchCountAfter { get; set; } = new Dictionary<string, int>();
     }
 
@@ -452,8 +452,8 @@ namespace StandaloneBaseball
         public float Y { get; set; }
         public bool Runner { get; set; }
         public bool Highlighted { get; set; }
-        public Player Player { get; set; }
-        public Team Team { get; set; }
+        public Player? Player { get; set; }
+        public Team? Team { get; set; }
     }
 
     public sealed class ReplayScore
@@ -464,16 +464,16 @@ namespace StandaloneBaseball
 
     public sealed class ReplayBases
     {
-        public ReplayPlayer First { get; set; }
-        public ReplayPlayer Second { get; set; }
-        public ReplayPlayer Third { get; set; }
+        public ReplayPlayer? First { get; set; }
+        public ReplayPlayer? Second { get; set; }
+        public ReplayPlayer? Third { get; set; }
     }
 
     public sealed class ReplayAtBatResult
     {
         public string Outcome { get; set; } = "";
-        public ReplayPlayer Batter { get; set; }
-        public ReplayPlayer Pitcher { get; set; }
+        public ReplayPlayer? Batter { get; set; }
+        public ReplayPlayer? Pitcher { get; set; }
         public int BatterRoll { get; set; }
         public int PitcherRoll { get; set; }
         public string Winner { get; set; } = "";
@@ -491,7 +491,7 @@ namespace StandaloneBaseball
         public int RunsScoredOnPlay { get; set; }
         public List<string> RbiPlayerIds { get; set; } = new List<string>();
         public bool EarnedRun { get; set; }
-        public ReplayPlayer Fielder { get; set; }
+        public ReplayPlayer? Fielder { get; set; }
         public List<string> AssistPlayerIds { get; set; } = new List<string>();
         public string PutoutPlayerId { get; set; } = "";
         public string ErrorPlayerId { get; set; } = "";

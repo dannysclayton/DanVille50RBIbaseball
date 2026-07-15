@@ -179,7 +179,7 @@ namespace StandaloneBaseball
 
         private Control BuildLogoPanel(Team champion, string logoPath, Color fallbackColor)
         {
-            Image logo = LoadImage(logoPath);
+            Image? logo = LoadImage(logoPath);
             if (logo != null)
             {
                 _images.Add(logo);
@@ -214,7 +214,7 @@ namespace StandaloneBaseball
             var paths = (photoPaths ?? Array.Empty<string>()).Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
             foreach (var path in paths)
             {
-                Image photo = LoadImage(path);
+                Image? photo = LoadImage(path);
                 if (photo == null)
                     continue;
 
@@ -265,7 +265,7 @@ namespace StandaloneBaseball
             };
         }
 
-        private static Image LoadImage(string path)
+        private static Image? LoadImage(string path)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return null;

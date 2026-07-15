@@ -27,7 +27,7 @@ namespace StandaloneBaseball
 
         public sealed class SimulatedGameRun
         {
-            public GameResult Result { get; set; }
+            public required GameResult Result { get; set; }
             public List<SimulatedGameEvent> Events { get; set; } = new List<SimulatedGameEvent>();
         }
 
@@ -2018,8 +2018,8 @@ namespace StandaloneBaseball
 
         private sealed class PitcherUse
         {
-            public Team Team { get; set; }
-            public Player Player { get; set; }
+            public required Team Team { get; set; }
+            public required Player Player { get; set; }
             public bool Starter { get; set; }
             public bool EnteredInSaveSituation { get; set; }
             public bool EnteredWithThreeRunLead { get; set; }

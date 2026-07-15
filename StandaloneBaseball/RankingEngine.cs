@@ -110,7 +110,7 @@ namespace StandaloneBaseball
                 .ToList();
         }
 
-        public static SeasonRankingPoll LatestPoll(Season season)
+        public static SeasonRankingPoll? LatestPoll(Season season)
         {
             return (season?.RankingPolls ?? Enumerable.Empty<SeasonRankingPoll>())
                 .OrderByDescending(p => PollSortOrder(p.Type))
@@ -119,7 +119,7 @@ namespace StandaloneBaseball
                 .FirstOrDefault();
         }
 
-        public static SeasonRankingPoll LatestRegularSeasonPoll(Season season)
+        public static SeasonRankingPoll? LatestRegularSeasonPoll(Season season)
         {
             return (season?.RankingPolls ?? Enumerable.Empty<SeasonRankingPoll>())
                 .Where(p => p.Type == RankingPollType.Weekly || p.Type == RankingPollType.PreSeason)
@@ -192,7 +192,7 @@ namespace StandaloneBaseball
         private static string AppendNote(string notes, string note)
             => string.IsNullOrWhiteSpace(notes) ? note : notes + "; " + note;
 
-        private static SeasonRankingPoll PreviousPoll(Season season, RankingPollType type, int week)
+        private static SeasonRankingPoll? PreviousPoll(Season season, RankingPollType type, int week)
         {
             var polls = season?.RankingPolls ?? new List<SeasonRankingPoll>();
             if (type == RankingPollType.PreSeason)
@@ -214,7 +214,7 @@ namespace StandaloneBaseball
                 .FirstOrDefault();
         }
 
-        private static Dictionary<Guid, int> PreseasonBaselineRanks(LeagueFile league, Season season, Season priorSeason)
+        private static Dictionary<Guid, int> PreseasonBaselineRanks(LeagueFile league, Season season, Season? priorSeason)
         {
             return (league.Teams ?? new List<Team>())
                 .Select(t => new { t.Id, Score = PreSeasonScore(t, priorSeason, t.Id), Name = t.DisplayName })
@@ -224,7 +224,7 @@ namespace StandaloneBaseball
                 .ToDictionary(x => x.Id, x => x.Rank);
         }
 
-        private static double PreSeasonScore(Team team, Season priorSeason, Guid teamId)
+        private static double PreSeasonScore(Team team, Season? priorSeason, Guid teamId)
         {
             double roster = TeamRosterScore(team);
             if (priorSeason == null)
@@ -233,7 +233,7 @@ namespace StandaloneBaseball
             return roster * 0.60 + TeamCoachScore(team) * 0.18 + PriorSeasonScore(priorSeason, teamId) * 0.22;
         }
 
-        private static Season PriorSeason(LeagueFile league, Season season)
+        private static Season? PriorSeason(LeagueFile league, Season season)
         {
             var seasons = league?.Seasons ?? new List<Season>();
             int index = seasons.FindIndex(s => s.Id == season.Id);
@@ -281,7 +281,7 @@ namespace StandaloneBaseball
             };
         }
 
-        private static double PriorSeasonScore(Season season, Guid teamId)
+        private static double PriorSeasonScore(Season? season, Guid teamId)
         {
             if (season == null)
                 return 50;

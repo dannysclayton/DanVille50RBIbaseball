@@ -27,21 +27,21 @@ namespace StandaloneBaseball
     {
         private sealed class Placement
         {
-            public Conference Conference { get; set; }
-            public Region Region { get; set; }
-            public District District { get; set; }
+            public required Conference Conference { get; set; }
+            public required Region Region { get; set; }
+            public required District District { get; set; }
         }
 
         private sealed class SeasonContext
         {
-            public Season Season { get; set; }
+            public required Season Season { get; set; }
             public int Number { get; set; }
         }
 
         private sealed class PlayerGameRecordRow
         {
-            public PlayerGameLine Line { get; set; }
-            public GameResult Game { get; set; }
+            public required PlayerGameLine Line { get; set; }
+            public required GameResult Game { get; set; }
             public int SeasonNumber { get; set; }
             public string SeasonName { get; set; } = "";
         }
@@ -49,10 +49,10 @@ namespace StandaloneBaseball
         private sealed class TeamGameRecordRow
         {
             public Guid TeamId { get; set; }
-            public GameResult Game { get; set; }
+            public required GameResult Game { get; set; }
             public int SeasonNumber { get; set; }
             public string SeasonName { get; set; } = "";
-            public PlayerGameLine Stats { get; set; }
+            public required PlayerGameLine Stats { get; set; }
             public int Runs { get; set; }
             public int RunsAllowed { get; set; }
         }

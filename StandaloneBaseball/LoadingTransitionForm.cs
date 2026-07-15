@@ -9,7 +9,7 @@ namespace StandaloneBaseball
     public sealed class LoadingTransitionForm : Form
     {
         private const string LoadingImageName = "game day 2.jpg";
-        private readonly Image _loadingImage;
+        private readonly Image? _loadingImage;
         private readonly ProgressBar _progress;
         private readonly Label _status;
         private readonly System.Windows.Forms.Timer _timer;
@@ -143,7 +143,7 @@ namespace StandaloneBaseball
                 height);
         }
 
-        private static Image LoadLoadingImage()
+        private static Image? LoadLoadingImage()
         {
             string path = Path.Combine(AppContext.BaseDirectory, "Assets", "Loading Screens", LoadingImageName);
             if (!File.Exists(path))

@@ -16,7 +16,7 @@ namespace StandaloneBaseball
     {
         internal sealed class TeamLogoChoice
         {
-            public Team Team { get; set; }
+            public required Team Team { get; set; }
             public string LogoPath { get; set; } = "";
             public override string ToString() => Team?.DisplayName ?? "Team logo";
         }
@@ -362,7 +362,7 @@ namespace StandaloneBaseball
 
         private static string AddAssetToArchive(ZipArchive archive, string assetPath, HashSet<string> usedAssetNames)
         {
-            string path = ResolveAssetPath(assetPath);
+            string? path = ResolveAssetPath(assetPath);
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return "";
 
@@ -399,7 +399,7 @@ namespace StandaloneBaseball
         {
             int index = _fieldList.SelectedIndex;
             if (index < 0) return;
-            _fieldList.Items[index] = _selected;
+            _fieldList.Items[index] = _selected ?? throw new InvalidOperationException("No field is selected.");
             _fieldList.SelectedIndex = index;
         }
 
@@ -407,10 +407,10 @@ namespace StandaloneBaseball
         {
             if (!EnsureFieldSelected() || _selected is not CustomBaseballField selectedField)
                 return;
-            string source = ChooseImage("Choose field background");
+            string? source = ChooseImage("Choose field background");
             if (string.IsNullOrWhiteSpace(source))
                 return;
-            string asset = ImportAssetSafe(source);
+            string? asset = ImportAssetSafe(source);
             if (string.IsNullOrWhiteSpace(asset))
                 return;
             selectedField.BackgroundAssetPath = asset;
@@ -421,10 +421,10 @@ namespace StandaloneBaseball
         {
             if (!EnsureFieldSelected() || _selected is not CustomBaseballField selectedField)
                 return;
-            string source = ChooseImage("Choose image or logo to place on the field");
+            string? source = ChooseImage("Choose image or logo to place on the field");
             if (string.IsNullOrWhiteSpace(source))
                 return;
-            string asset = ImportAssetSafe(source);
+            string? asset = ImportAssetSafe(source);
             if (string.IsNullOrWhiteSpace(asset))
                 return;
             selectedField.Overlays.Add(new FieldImageOverlay
@@ -477,7 +477,7 @@ namespace StandaloneBaseball
             if (form.ShowDialog(this) != DialogResult.OK || combo.SelectedItem is not TeamLogoChoice selected)
                 return;
 
-            string asset = ImportAssetSafe(selected.LogoPath);
+            string? asset = ImportAssetSafe(selected.LogoPath);
             if (string.IsNullOrWhiteSpace(asset))
                 return;
             selectedField.Overlays.Add(new FieldImageOverlay
@@ -563,7 +563,7 @@ namespace StandaloneBaseball
                 return;
 
             var row = _overlayGrid.Rows[rowIndex];
-            overlay.Name = Convert.ToString(row.Cells["name"].Value)?.Trim();
+            overlay.Name = Convert.ToString(row.Cells["name"].Value)?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(overlay.Name))
                 overlay.Name = "Image";
             overlay.X = ReadFloat(row.Cells["x"].Value, overlay.X, 0f, 1f);
@@ -588,7 +588,7 @@ namespace StandaloneBaseball
             _preview.Invalidate();
         }
 
-        private void PaintPreview(object sender, PaintEventArgs e)
+        private void PaintPreview(object? sender, PaintEventArgs e)
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -597,7 +597,7 @@ namespace StandaloneBaseball
                 return;
 
             var preset = BaseballFieldPresets.FromCustom(_selected);
-            string background = ResolveAssetPath(preset.BackgroundAssetPath);
+            string? background = ResolveAssetPath(preset.BackgroundAssetPath);
             if (!string.IsNullOrWhiteSpace(background) && File.Exists(background))
             {
                 try
@@ -649,7 +649,7 @@ namespace StandaloneBaseball
 
             foreach (var overlay in preset.Overlays)
             {
-                string path = ResolveAssetPath(overlay.AssetPath);
+                string? path = ResolveAssetPath(overlay.AssetPath);
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                     continue;
 
@@ -676,7 +676,7 @@ namespace StandaloneBaseball
                 font, label, Color.White, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 
-        private static string ResolveAssetPath(string assetPath)
+        private static string? ResolveAssetPath(string assetPath)
         {
             if (string.IsNullOrWhiteSpace(assetPath))
                 return null;

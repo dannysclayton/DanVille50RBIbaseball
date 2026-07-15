@@ -10,8 +10,8 @@ does not grant rights to any asset. The detailed file inventory is in
   owner's computer. The local publish script verifies every asset by SHA-256.
 - **Public Version 1.0** excludes packaged audio, photographs, artwork, venue
   images, and other bitmap/video media whose redistribution rights are not stored
-  with the project, except for the user-approved trophy template explicitly
-  required for the shared trophy feature.
+  with the project, except for explicitly approved user-created artwork and the
+  user-approved trophy template.
 - Public publishing keeps `schools.csv`, the replay template, documentation, and
   the executable. Missing media uses code-rendered visuals and silence.
 - An asset may move into the public package only after its exact file has a stored

@@ -10,7 +10,7 @@ namespace StandaloneBaseball
     public sealed class LineupSlot
     {
         public int BattingOrder { get; set; }
-        public Player Player { get; set; }
+        public required Player Player { get; set; }
         public string DefensivePosition { get; set; } = "";
         public bool DesignatedHitter { get; set; }
     }
@@ -19,7 +19,7 @@ namespace StandaloneBaseball
     {
         public List<LineupSlot> BattingOrder { get; set; } = new List<LineupSlot>();
         public Dictionary<string, Player> DefensiveAssignments { get; set; } = new Dictionary<string, Player>(StringComparer.OrdinalIgnoreCase);
-        public Player StartingPitcher { get; set; }
+        public Player? StartingPitcher { get; set; }
         public bool HasDesignatedHitter { get; set; }
         public bool IsValid { get; set; }
         public List<string> MissingPositions { get; set; } = new List<string>();
@@ -71,7 +71,7 @@ namespace StandaloneBaseball
             var used = new HashSet<Guid>();
             foreach (string position in MandatoryDefensivePositions)
             {
-                Player player = position == "P"
+                Player? player = position == "P"
                     ? BestPitcher(available, used)
                     : BestFielderForPosition(available, position, used);
                 if (player == null)
@@ -165,7 +165,7 @@ namespace StandaloneBaseball
                     BatGrade = LineupCardExporter.BatGrade(slot.Player),
                     PositionHistory = new List<GamePositionChange>
                     {
-                        new GamePositionChange { Inning = 1, Half = HalfInning.Top, Position = slot.DesignatedHitter ? "DH" : slot.DefensivePosition, Reason = "Starting lineup" }
+                        new GamePositionChange { Inning = 1, Half = HalfInning.Top, Position = slot.DesignatedHitter ? "DH" : slot.DefensivePosition ?? "", Reason = "Starting lineup" }
                     }
                 })
                 .ToList();
@@ -259,7 +259,7 @@ namespace StandaloneBaseball
             {
                 if (!saved.DefensiveAssignments.TryGetValue(position, out Guid playerId))
                     return false;
-                if (!available.TryGetValue(playerId, out Player player))
+                if (!available.TryGetValue(playerId, out Player? player))
                     return false;
                 if (!CanAssignPosition(player, position))
                     return false;
@@ -272,7 +272,7 @@ namespace StandaloneBaseball
             var usedBatters = new HashSet<Guid>();
             foreach (var slot in saved.BattingOrder.OrderBy(s => s.BattingOrder))
             {
-                if (!available.TryGetValue(slot.PlayerId, out Player player))
+                if (!available.TryGetValue(slot.PlayerId, out Player? player))
                     return false;
                 if (!usedBatters.Add(player.Id))
                     return false;
@@ -289,8 +289,8 @@ namespace StandaloneBaseball
             if (batting.Count != 9)
                 return false;
 
-            defensive.TryGetValue("P", out Player pitcher);
-            Player dh = batting.FirstOrDefault(s => s.DesignatedHitter)?.Player;
+            defensive.TryGetValue("P", out Player? pitcher);
+            Player? dh = batting.FirstOrDefault(s => s.DesignatedHitter)?.Player;
             if (saved.HasDesignatedHitter)
             {
                 if (dh == null || pitcher == null || batting.Any(s => s.Player?.Id == pitcher.Id))

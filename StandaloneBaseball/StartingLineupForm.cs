@@ -176,7 +176,7 @@ namespace StandaloneBaseball
 
         private void DrawLogo(Graphics g, Rectangle rect)
         {
-            Image logo = LoadImage(_logoPath);
+            Image? logo = LoadImage(_logoPath);
             if (logo != null)
             {
                 DrawImageContained(g, logo, rect);
@@ -230,10 +230,10 @@ namespace StandaloneBaseball
             }
         }
 
-        private void DrawPlayerSprite(Graphics g, Player player, PointF center, bool active)
+        private void DrawPlayerSprite(Graphics g, Player? player, PointF center, bool active)
         {
             float size = active ? 78f : 62f;
-            Image sprite = LoadSprite(player);
+            Image? sprite = LoadSprite(player);
             RectangleF dest = new RectangleF(center.X - size / 2f, center.Y - size / 2f, size, size);
             using var shadow = new SolidBrush(Color.FromArgb(115, Color.Black));
             g.FillEllipse(shadow, center.X - size / 2f + 4, center.Y + size / 2f - 11, size, 14);
@@ -312,33 +312,33 @@ namespace StandaloneBaseball
 
             void AddSpot(string position, float x, float y, LineupCard lineupCard)
             {
-                lineupCard.DefensiveAssignments.TryGetValue(position, out Player player);
+                lineupCard.DefensiveAssignments.TryGetValue(position, out Player? player);
                 spots.Add(new PlayerSpot { Position = position, Player = player, X = x, Y = y });
             }
         }
 
-        private static HashSet<string> PositionParts(Player player)
+        private static HashSet<string> PositionParts(Player? player)
             => new HashSet<string>((player?.Positions ?? "").ToUpperInvariant().Split(new[] { '/', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries));
 
-        private static string PrimaryDisplayPosition(Player player)
+        private static string PrimaryDisplayPosition(Player? player)
         {
             if (player == null)
                 return "";
             string positions = (player.Positions ?? "").ToUpperInvariant();
             if (positions.Contains("P") && player.Role == PlayerRole.Pitcher)
                 return "P";
-            string first = positions.Split(new[] { '/', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            string? first = positions.Split(new[] { '/', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
             return string.IsNullOrWhiteSpace(first) ? (player.Role == PlayerRole.Pitcher ? "P" : "DH") : first;
         }
 
-        private static string ShortName(Player player)
+        private static string ShortName(Player? player)
         {
             if (player == null || string.IsNullOrWhiteSpace(player.Name))
                 return "PLAYER";
             return player.Name.Trim().ToUpperInvariant();
         }
 
-        private void DrawGeneratedPlayer(Graphics g, RectangleF dest, Player player)
+        private void DrawGeneratedPlayer(Graphics g, RectangleF dest, Player? player)
         {
             TeamUniformSet? uniform = _uniformSet ?? GameUniformResolver.ResolveUniform(_team, _homeTeam, null);
             Color jersey = player?.JerseyColor(_team, uniform) ?? Color.FromArgb(uniform?.JerseyArgb ?? _team.PrimaryArgb);
@@ -441,8 +441,8 @@ namespace StandaloneBaseball
 
         private sealed class PlayerSpot
         {
-            public string Position { get; set; }
-            public Player Player { get; set; }
+            public string Position { get; set; } = "";
+            public Player? Player { get; set; }
             public float X { get; set; }
             public float Y { get; set; }
         }

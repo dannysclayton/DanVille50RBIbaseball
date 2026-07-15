@@ -160,7 +160,7 @@ namespace StandaloneBaseball
 
         private static string CellText(XElement cell, List<string> shared)
         {
-            string type = (string)cell.Attribute("t") ?? "";
+            string type = (string?)cell.Attribute("t") ?? "";
             if (type == "inlineStr")
                 return string.Concat(cell.Descendants(MainNs + "t").Select(t => t.Value)).Trim();
 

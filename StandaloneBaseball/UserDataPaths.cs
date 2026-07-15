@@ -34,7 +34,7 @@ namespace StandaloneBaseball
             if (File.Exists(target))
                 return target;
 
-            string parent = Path.GetDirectoryName(target);
+            string? parent = Path.GetDirectoryName(target);
             if (!string.IsNullOrWhiteSpace(parent))
                 Directory.CreateDirectory(parent);
             string seed = Path.Combine(Path.GetFullPath(packageRoot), "Assets", "Data", "schools.csv");
@@ -59,7 +59,7 @@ namespace StandaloneBaseball
                     if (!destination.StartsWith(target.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
                             StringComparison.OrdinalIgnoreCase))
                         continue;
-                    string parent = Path.GetDirectoryName(destination);
+                    string? parent = Path.GetDirectoryName(destination);
                     if (!string.IsNullOrWhiteSpace(parent))
                         Directory.CreateDirectory(parent);
                     if (!File.Exists(destination))

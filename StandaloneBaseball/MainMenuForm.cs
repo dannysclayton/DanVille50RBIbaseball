@@ -11,7 +11,7 @@ namespace StandaloneBaseball
     public sealed class MainMenuForm : Form
     {
         private const string MenuImageName = "Dan's RBI Baseball 2026 menu screen.png";
-        private readonly Image _menuImage;
+        private readonly Image? _menuImage;
         private readonly LaunchSoundPlayer _menuMusic = new LaunchSoundPlayer();
         private readonly LaunchSoundPlayer _buttonSound = new LaunchSoundPlayer();
         private readonly System.Windows.Forms.Timer _controllerTimer;
@@ -126,7 +126,7 @@ namespace StandaloneBaseball
             graphics.DrawRoundedRectangle(outline, rect, 14);
         }
 
-        private void OnMenuKeyDown(object sender, KeyEventArgs e)
+        private void OnMenuKeyDown(object? sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Down || e.KeyCode == Keys.S)
             {
@@ -328,7 +328,7 @@ namespace StandaloneBaseball
             };
         }
 
-        private static Image LoadMenuImage()
+        private static Image? LoadMenuImage()
         {
             string path = Path.Combine(AppContext.BaseDirectory, "Assets", MenuImageName);
             if (!File.Exists(path))

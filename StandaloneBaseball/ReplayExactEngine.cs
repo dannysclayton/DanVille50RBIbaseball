@@ -68,7 +68,7 @@ namespace StandaloneBaseball
                     report.Errors.Add(prefix + " is missing animation data.");
                 previousEnd = replayEvent.TimeMs + Math.Max(0, replayEvent.DurationMs);
 
-                ReplayAnimation animation = replayEvent.Animation;
+                ReplayAnimation? animation = replayEvent.Animation;
                 if (animation != null)
                 {
                     ValidatePath(animation.BallPath, replayEvent, prefix + " ball_path", report);
@@ -126,7 +126,7 @@ namespace StandaloneBaseball
                 .Concat((animation.Throws ?? new List<ReplayThrowPath>()).SelectMany(path => path?.Path ?? new List<ReplayPathPoint>()))
                 .OrderBy(point => point.TimeMs)
                 .ToList();
-            ReplayPathPoint ball = Sample(ballPoints, Math.Clamp(replayTimeMs, replayEvent.TimeMs, end));
+            ReplayPathPoint? ball = Sample(ballPoints, Math.Clamp(replayTimeMs, replayEvent.TimeMs, end));
             if (ball != null)
             {
                 frame.BallVisible = ball.Visible;

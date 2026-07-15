@@ -72,7 +72,7 @@ namespace StandaloneBaseball
             foreach (string path in new[] { PreferredSchoolsCsvPath, RuntimeSchoolsCsvPath, PackagedSchoolsCsvPath })
             {
                 if (string.IsNullOrWhiteSpace(path)) continue;
-                string dir = Path.GetDirectoryName(path);
+                string? dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
                     return dir;
             }
@@ -186,7 +186,7 @@ namespace StandaloneBaseball
             if (string.IsNullOrWhiteSpace(targetPath))
                 throw new ArgumentException("A schools CSV target path is required.", nameof(targetPath));
 
-            string dir = Path.GetDirectoryName(targetPath);
+            string? dir = Path.GetDirectoryName(targetPath);
             if (!string.IsNullOrWhiteSpace(dir))
                 Directory.CreateDirectory(dir);
 

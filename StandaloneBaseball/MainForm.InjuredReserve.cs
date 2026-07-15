@@ -10,7 +10,7 @@ namespace StandaloneBaseball
     {
         private void ManageInjuredReserve()
         {
-            Team team = SelectedTeam();
+            Team? team = SelectedTeam();
             if (team == null)
             {
                 MessageBox.Show(this, "Select a team first.");
@@ -89,7 +89,7 @@ namespace StandaloneBaseball
                 }
                 if (team.Roster.Count >= PlayerProgressionEngine.TargetRosterSize)
                 {
-                    Player optioned = ChooseVarsityPlayerToOption(form, team, player);
+                    Player? optioned = ChooseVarsityPlayerToOption(form, team, player);
                     if (optioned == null)
                         return;
                     team.Roster.Remove(optioned);
@@ -99,7 +99,7 @@ namespace StandaloneBaseball
                 team.InjuredReserve.Remove(player);
                 team.Roster.Add(player);
                 RebuildTeamPlansAfterRosterMove(team);
-                MarkDirty();
+                MarkDirty(LeagueAutosaveReason.RosterChanged);
                 refresh();
                 LoadSelectedTeam();
             });
@@ -142,7 +142,7 @@ namespace StandaloneBaseball
                 PlayerProgressionEngine.PrepareJvCallUp(replacement, seasonNumber, _rng);
                 team.Roster.Add(replacement);
                 RebuildTeamPlansAfterRosterMove(team);
-                MarkDirty();
+                MarkDirty(LeagueAutosaveReason.RosterChanged);
                 refresh();
                 LoadSelectedTeam();
             });
@@ -153,7 +153,7 @@ namespace StandaloneBaseball
             RefreshHierarchyStatistics();
         }
 
-        private static Player ChooseVarsityPlayerToOption(IWin32Window owner, Team team, Player returningPlayer)
+        private static Player? ChooseVarsityPlayerToOption(IWin32Window owner, Team team, Player returningPlayer)
         {
             using var dialog = new Form
             {
@@ -177,7 +177,7 @@ namespace StandaloneBaseball
             foreach (Player player in (team.Roster ?? new List<Player>()).OrderBy(player => player.Role).ThenBy(player => player.Name))
                 AddIrPlayerRow(grid, player, "Active");
             root.Controls.Add(grid, 0, 1);
-            Player selected = null;
+            Player? selected = null;
             var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
             AddButton(buttons, "Cancel", (s, e) => dialog.Close());
             AddButton(buttons, "Option to JV", (s, e) =>
@@ -238,7 +238,7 @@ namespace StandaloneBaseball
         private int CurrentRosterManagementSeasonNumber()
         {
             var seasons = _league?.Seasons ?? new List<Season>();
-            Season current = seasons.LastOrDefault(season => !season.OffseasonProcessed) ?? seasons.LastOrDefault();
+            Season? current = seasons.LastOrDefault(season => !season.OffseasonProcessed) ?? seasons.LastOrDefault();
             return current == null ? 1 : CurrentSeasonNumber(current);
         }
 

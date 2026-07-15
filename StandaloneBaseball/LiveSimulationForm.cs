@@ -22,7 +22,7 @@ namespace StandaloneBaseball
         private readonly Button _commitButton = new Button();
         private readonly Button _dismissButton = new Button();
         private readonly PlaylistSoundPlayer _music = new PlaylistSoundPlayer();
-        private Image _templateImage;
+        private Image? _templateImage;
         private int _eventIndex;
 
         public LiveSimulationForm(SimulatedGameEngine.SimulatedGameRun run, Team away, Team home, string scoreboardTemplatePath = "", string homeLogoPath = "")

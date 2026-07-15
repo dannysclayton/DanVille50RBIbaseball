@@ -277,15 +277,16 @@ namespace StandaloneBaseball
         {
             long start = replayEvent.TimeMs;
             long end = start + replayEvent.DurationMs;
-            replayEvent.Animation.BallPath = NormalizePath(replayEvent.Animation.BallPath, start, end);
-            replayEvent.Animation.FielderPaths = (replayEvent.Animation.FielderPaths ?? new List<ReplayActorPath>())
+            ReplayAnimation animation = replayEvent.Animation ??= new ReplayAnimation();
+            animation.BallPath = NormalizePath(animation.BallPath, start, end);
+            animation.FielderPaths = (animation.FielderPaths ?? new List<ReplayActorPath>())
                 .Where(path => path != null)
                 .Select(path =>
                 {
                     path.Path = NormalizePath(path.Path, start, end);
                     return path;
                 }).ToList();
-            replayEvent.Animation.RunnerPaths = (replayEvent.Animation.RunnerPaths ?? new List<ReplayRunnerPath>())
+            animation.RunnerPaths = (animation.RunnerPaths ?? new List<ReplayRunnerPath>())
                 .Where(path => path != null)
                 .Select(path =>
                 {

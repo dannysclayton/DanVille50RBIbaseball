@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace StandaloneBaseball
@@ -20,8 +21,27 @@ namespace StandaloneBaseball
     public static class LeagueStore
     {
         public const string Extension = ".dbaseball.json";
-        public const int CurrentSaveSchemaVersion = 1;
+        public const int CurrentSaveSchemaVersion = 2;
         private const int MaxBackupFiles = 12;
+
+        private sealed class LeagueSaveMigration
+        {
+            public LeagueSaveMigration(int sourceVersion, int targetVersion, Action<LeagueFile> apply)
+            {
+                SourceVersion = sourceVersion;
+                TargetVersion = targetVersion;
+                Apply = apply;
+            }
+
+            public int SourceVersion { get; }
+            public int TargetVersion { get; }
+            public Action<LeagueFile> Apply { get; }
+        }
+
+        private static readonly IReadOnlyList<LeagueSaveMigration> Migrations = new[]
+        {
+            new LeagueSaveMigration(1, 2, MigrateVersion1ToVersion2)
+        };
 
         private static readonly JsonSerializerOptions Options = new JsonSerializerOptions
         {
@@ -86,7 +106,8 @@ namespace StandaloneBaseball
             Directory.CreateDirectory(backupDirectory);
             string backupPath = Path.Combine(
                 backupDirectory,
-                Path.GetFileNameWithoutExtension(sourcePath) + "." + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff") + Path.GetExtension(sourcePath) + ".bak");
+                Path.GetFileNameWithoutExtension(sourcePath) + "." + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff") + "_" +
+                Guid.NewGuid().ToString("N").Substring(0, 8) + Path.GetExtension(sourcePath) + ".bak");
             File.Copy(sourcePath, backupPath, overwrite: false);
         }
 
@@ -128,10 +149,19 @@ namespace StandaloneBaseball
 
         public static LeagueFile Load(string path)
         {
-            var league = JsonSerializer.Deserialize<LeagueFile>(File.ReadAllText(path)) ?? new LeagueFile();
+            string json = File.ReadAllText(path);
+            int sourceVersion = ReadSourceSchemaVersion(json);
+            if (sourceVersion > CurrentSaveSchemaVersion)
+            {
+                throw new InvalidDataException(
+                    "This dynasty uses save schema version " + sourceVersion +
+                    ", but this application supports up to version " + CurrentSaveSchemaVersion + ".");
+            }
+
+            var league = JsonSerializer.Deserialize<LeagueFile>(json) ?? new LeagueFile();
+            league.SaveSchemaVersion = sourceVersion;
+            ApplyMigrations(league);
             var rng = new Random();
-            if (league.SaveSchemaVersion <= 0)
-                league.SaveSchemaVersion = 1;
             if (string.IsNullOrWhiteSpace(league.AssetLibraryPath))
                 league.AssetLibraryPath = LeagueFile.DefaultAssetLibraryPath;
             league.Rules ??= new LeagueRules();
@@ -254,6 +284,55 @@ namespace StandaloneBaseball
             return league;
         }
 
+        private static int ReadSourceSchemaVersion(string json)
+        {
+            using JsonDocument document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException("The dynasty file must contain a JSON object.");
+
+            if (!document.RootElement.TryGetProperty(nameof(LeagueFile.SaveSchemaVersion), out JsonElement versionElement))
+                return 1;
+            if (versionElement.ValueKind != JsonValueKind.Number || !versionElement.TryGetInt32(out int version))
+                throw new InvalidDataException("The dynasty save schema version must be an integer.");
+            return version <= 0 ? 1 : version;
+        }
+
+        private static void ApplyMigrations(LeagueFile league)
+        {
+            while (league.SaveSchemaVersion < CurrentSaveSchemaVersion)
+            {
+                LeagueSaveMigration? migration = Migrations.SingleOrDefault(item => item.SourceVersion == league.SaveSchemaVersion);
+                if (migration == null || migration.TargetVersion != migration.SourceVersion + 1)
+                {
+                    throw new InvalidDataException(
+                        "No save migration is available from schema version " + league.SaveSchemaVersion + ".");
+                }
+
+                migration.Apply(league);
+                league.SaveSchemaVersion = migration.TargetVersion;
+            }
+        }
+
+        private static void MigrateVersion1ToVersion2(LeagueFile league)
+        {
+            league.UserControlledTeamIds ??= new List<Guid>();
+            league.InProgressGames ??= new List<InProgressGameSave>();
+            league.HallOfFameEntries ??= new List<HallOfFameEntry>();
+            league.CustomFields ??= new List<CustomBaseballField>();
+            league.Cutscenes ??= new List<CutsceneDefinition>();
+            league.InboxMessages ??= new List<CoachInboxMessage>();
+
+            foreach (HallOfFameEntry entry in league.HallOfFameEntries.Where(entry => entry != null))
+            {
+                if (!string.Equals(entry.EntryType, "Coach", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (entry.CoachId == Guid.Empty)
+                    entry.CoachId = entry.PlayerId;
+                if (string.IsNullOrWhiteSpace(entry.CoachName))
+                    entry.CoachName = entry.PlayerName;
+            }
+        }
+
         public static bool TryLoad(string path, [NotNullWhen(true)] out LeagueFile? league, out string errorMessage)
         {
             try
@@ -268,6 +347,35 @@ namespace StandaloneBaseball
                 errorMessage = ex.Message;
                 return false;
             }
+        }
+
+        public static bool TryLoadWithRecovery(
+            string path,
+            [NotNullWhen(true)] out LeagueFile? league,
+            out string loadedPath,
+            out string errorMessage)
+        {
+            if (TryLoad(path, out league, out errorMessage))
+            {
+                loadedPath = Path.GetFullPath(path);
+                return true;
+            }
+
+            string primaryError = errorMessage;
+            foreach (LeagueBackupInfo backup in GetBackups(path).Where(item => item.IsValid))
+            {
+                if (!TryLoad(backup.Path, out league, out _))
+                    continue;
+
+                loadedPath = backup.Path;
+                errorMessage = primaryError;
+                return true;
+            }
+
+            league = null;
+            loadedPath = "";
+            errorMessage = primaryError;
+            return false;
         }
 
         public static System.Collections.Generic.IReadOnlyList<LeagueBackupInfo> GetBackups(string savePath)
@@ -358,39 +466,39 @@ namespace StandaloneBaseball
             if (save.SavedAt == default)
                 save.SavedAt = System.DateTime.Now;
             save.Label ??= "";
-            if (save.State != null)
+            GameplayState? state = save.State;
+            if (state == null)
+                return;
+
+            state.Count ??= new CountState();
+            state.Bases ??= new BaseState();
+            state.PinchUseCounts ??= new System.Collections.Generic.Dictionary<System.Guid, int>();
+            state.RemovedPlayerIds ??= new System.Collections.Generic.List<System.Guid>();
+            state.AwayLineupPlayerIds ??= new System.Collections.Generic.List<System.Guid>();
+            state.HomeLineupPlayerIds ??= new System.Collections.Generic.List<System.Guid>();
+            state.LiveLines ??= new System.Collections.Generic.List<PlayerGameLine>();
+            state.AwayRunsByInning ??= new System.Collections.Generic.List<int>();
+            state.HomeRunsByInning ??= new System.Collections.Generic.List<int>();
+            state.PlayByPlay ??= new System.Collections.Generic.List<GamePlayByPlayEntry>();
+            state.CompletedHalfInnings ??= new System.Collections.Generic.List<HalfInningSnapshot>();
+            state.LiveRules ??= new GameplayLiveRulesState();
+            state.AwayLeftOnBase = System.Math.Max(0, state.AwayLeftOnBase);
+            state.HomeLeftOnBase = System.Math.Max(0, state.HomeLeftOnBase);
+            state.AwayRunsByInning = state.AwayRunsByInning.Select(r => System.Math.Max(0, r)).ToList();
+            state.HomeRunsByInning = state.HomeRunsByInning.Select(r => System.Math.Max(0, r)).ToList();
+            NormalizeGameplayControlAssignments(save, state);
+            NormalizeGameplayLiveRules(state.LiveRules);
+            foreach (var line in state.LiveLines)
+                NormalizePlayerGameLine(line);
+            foreach (var entry in state.PlayByPlay.Where(p => p != null))
             {
-                save.State.Count ??= new CountState();
-                save.State.Bases ??= new BaseState();
-                save.State.PinchUseCounts ??= new System.Collections.Generic.Dictionary<System.Guid, int>();
-                save.State.RemovedPlayerIds ??= new System.Collections.Generic.List<System.Guid>();
-                save.State.AwayLineupPlayerIds ??= new System.Collections.Generic.List<System.Guid>();
-                save.State.HomeLineupPlayerIds ??= new System.Collections.Generic.List<System.Guid>();
-                save.State.LiveLines ??= new System.Collections.Generic.List<PlayerGameLine>();
-                save.State.AwayRunsByInning ??= new System.Collections.Generic.List<int>();
-                save.State.HomeRunsByInning ??= new System.Collections.Generic.List<int>();
-                save.State.PlayByPlay ??= new System.Collections.Generic.List<GamePlayByPlayEntry>();
-                save.State.CompletedHalfInnings ??= new System.Collections.Generic.List<HalfInningSnapshot>();
-                save.State.LiveRules ??= new GameplayLiveRulesState();
-                save.State.AwayLeftOnBase = System.Math.Max(0, save.State.AwayLeftOnBase);
-                save.State.HomeLeftOnBase = System.Math.Max(0, save.State.HomeLeftOnBase);
-                save.State.AwayRunsByInning = save.State.AwayRunsByInning.Select(r => System.Math.Max(0, r)).ToList();
-                save.State.HomeRunsByInning = save.State.HomeRunsByInning.Select(r => System.Math.Max(0, r)).ToList();
-                NormalizeGameplayControlAssignments(save);
-                NormalizeGameplayLiveRules(save.State.LiveRules);
-                foreach (var line in save.State.LiveLines)
-                    NormalizePlayerGameLine(line);
-                foreach (var entry in save.State.PlayByPlay.Where(p => p != null))
-                {
-                    entry.Bases ??= "";
-                    entry.Description ??= "";
-                }
+                entry.Bases ??= "";
+                entry.Description ??= "";
             }
         }
 
-        private static void NormalizeGameplayControlAssignments(InProgressGameSave save)
+        private static void NormalizeGameplayControlAssignments(InProgressGameSave save, GameplayState state)
         {
-            var state = save.State;
             System.Guid awayId = state.AwayTeam?.Id ?? save.AwayTeamId;
             System.Guid homeId = state.HomeTeam?.Id ?? save.HomeTeamId;
 

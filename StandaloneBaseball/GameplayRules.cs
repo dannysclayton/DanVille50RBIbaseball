@@ -91,7 +91,7 @@ namespace StandaloneBaseball
             return gameEvent;
         }
 
-        public static Player GetLineupPlayer(Team team, int batterIndex)
+        public static Player? GetLineupPlayer(Team team, int batterIndex)
         {
             var lineup = GetLineup(team);
             if (lineup.Count == 0)
@@ -100,7 +100,7 @@ namespace StandaloneBaseball
             return lineup[index];
         }
 
-        public static Player GetPitcher(Team team, int pitcherIndex)
+        public static Player? GetPitcher(Team team, int pitcherIndex)
             => LineupEngine.GetPitcher(team, pitcherIndex);
 
         public static int FindStartingPitcherIndex(Team team)
@@ -203,12 +203,15 @@ namespace StandaloneBaseball
 
             foreach (var slot in BaseSlots(state).Where(s => s.Runner?.Player != null && s.Runner.CourtesyForPlayer == null).ToList())
             {
-                Player protectedPlayer = slot.Runner.Player;
+                BaseRunner? currentRunner = slot.Runner;
+                if (currentRunner?.Player == null)
+                    continue;
+                Player protectedPlayer = currentRunner.Player;
                 if (!IsPitcherOrCatcher(protectedPlayer))
                     continue;
 
                 var candidates = GetRunnerCandidates(state, protectedPlayer, excludePitchersCatchers: true);
-                Player selected = candidates.FirstOrDefault();
+                Player? selected = candidates.FirstOrDefault();
                 if (selected == null)
                     continue;
 
@@ -294,7 +297,7 @@ namespace StandaloneBaseball
             if (lineup.Count == 0 && candidates.Count == 0)
                 return;
 
-            Player runner = null;
+            Player? runner = null;
             if (state.PendingExtraInningRunnerId.HasValue)
                 runner = candidates.FirstOrDefault(p => p.Id == state.PendingExtraInningRunnerId.Value);
             runner ??= candidates.FirstOrDefault();
@@ -366,17 +369,17 @@ namespace StandaloneBaseball
 
         private sealed class BaseSlot
         {
-            private readonly Func<BaseRunner> _get;
-            private readonly Action<BaseRunner> _set;
+            private readonly Func<BaseRunner?> _get;
+            private readonly Action<BaseRunner?> _set;
 
-            public BaseSlot(Func<BaseRunner> get, Action<BaseRunner> set)
+            public BaseSlot(Func<BaseRunner?> get, Action<BaseRunner?> set)
             {
                 _get = get;
                 _set = set;
             }
 
-            public BaseRunner Runner => _get();
-            public void Assign(BaseRunner runner) => _set(runner);
+            public BaseRunner? Runner => _get();
+            public void Assign(BaseRunner? runner) => _set(runner);
         }
 
         private static bool IsPitcherOrCatcher(Player player)

@@ -10,7 +10,7 @@ namespace StandaloneBaseball
     {
         private const string LaunchImageName = "Dan s RBI Baseball 2026 logo.png";
         private readonly Button _startButton;
-        private readonly Image _launchImage;
+        private readonly Image? _launchImage;
         private readonly LaunchSoundPlayer _launchSound = new LaunchSoundPlayer();
         private readonly LaunchSoundPlayer _startSound = new LaunchSoundPlayer();
         private bool _starting;
@@ -146,7 +146,7 @@ namespace StandaloneBaseball
                 height);
         }
 
-        private static Image LoadLaunchImage()
+        private static Image? LoadLaunchImage()
         {
             string path = Path.Combine(AppContext.BaseDirectory, "Assets", LaunchImageName);
             if (!File.Exists(path))

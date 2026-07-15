@@ -52,8 +52,8 @@ namespace StandaloneBaseball
         public Guid UserControlledTeamId { get; set; }
         public Guid KeyboardControlledTeamId { get; set; }
         public Guid ControllerControlledTeamId { get; set; }
-        public Team AwayTeam { get; set; }
-        public Team HomeTeam { get; set; }
+        public Team AwayTeam { get; set; } = new Team();
+        public Team HomeTeam { get; set; } = new Team();
         public string FieldPresetId { get; set; } = BaseballFieldPresets.Default.Id;
         public Guid? AwayUniformSetId { get; set; }
         public Guid? HomeUniformSetId { get; set; }
@@ -105,7 +105,8 @@ namespace StandaloneBaseball
         public bool IsBottomHalf => Half == HalfInning.Bottom;
 
         public Player? CurrentBatter => GetLineupPlayer(BattingTeam, CurrentBatterIndex);
-        public Player CurrentPitcher => GameplayRules.GetPitcher(PitchingTeam, CurrentPitcherIndex);
+        public Player CurrentPitcher => GameplayRules.GetPitcher(PitchingTeam, CurrentPitcherIndex)
+            ?? throw new InvalidOperationException("The pitching team has no available pitcher.");
 
         public int CurrentBatterIndex
         {
@@ -211,7 +212,7 @@ namespace StandaloneBaseball
             var roster = team.Roster ?? new List<Player>();
             return ids
                 .Select(id => roster.FirstOrDefault(p => p != null && p.Id == id))
-                .Where(p => p != null)
+                .OfType<Player>()
                 .ToList();
         }
 
@@ -327,8 +328,8 @@ namespace StandaloneBaseball
 
     public sealed class BaseRunner
     {
-        public Player Player { get; set; }
-        public Team Team { get; set; }
+        public required Player Player { get; set; }
+        public required Team Team { get; set; }
         public int BatterIndex { get; set; }
         public Player? CourtesyForPlayer { get; set; }
         public Guid ResponsiblePitcherId { get; set; }
@@ -404,7 +405,7 @@ namespace StandaloneBaseball
     public sealed class PitchOutcome
     {
         public PitchOutcomeType Type { get; set; }
-        public AtBatResult AtBatResult { get; set; }
+        public AtBatResult? AtBatResult { get; set; }
 
         public static PitchOutcome Ball()
         {

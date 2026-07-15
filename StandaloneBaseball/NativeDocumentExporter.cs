@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Xml;
 
 namespace StandaloneBaseball
 {
@@ -11,7 +13,7 @@ namespace StandaloneBaseball
     {
         public string Title { get; set; } = "";
         public List<string> Headers { get; set; } = new List<string>();
-        public List<List<string>> Rows { get; set; } = new List<List<string>>();
+        public IEnumerable<IEnumerable<object?>> Rows { get; set; } = Enumerable.Empty<IEnumerable<object?>>();
     }
 
     internal static class NativeDocumentExporter
@@ -50,7 +52,7 @@ namespace StandaloneBaseball
             var rows = new StringBuilder();
             int rowIndex = 1;
             rows.Append(Row(rowIndex++, new[] { title }, style: 1));
-            rows.Append(Row(rowIndex++, Array.Empty<string>()));
+            rows.Append(Row(rowIndex++, Array.Empty<object?>()));
 
             foreach (var section in SafeSections(sections))
             {
@@ -60,7 +62,7 @@ namespace StandaloneBaseball
                     rows.Append(Row(rowIndex++, section.Headers, style: 2));
                 foreach (var row in section.Rows)
                     rows.Append(Row(rowIndex++, row));
-                rows.Append(Row(rowIndex++, Array.Empty<string>()));
+                rows.Append(Row(rowIndex++, Array.Empty<object?>()));
             }
 
             return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
@@ -73,20 +75,74 @@ namespace StandaloneBaseball
                    "</worksheet>";
         }
 
-        private static string Row(int rowIndex, IEnumerable<string> values, int style = 0)
+        private static string Row(int rowIndex, IEnumerable<object?> values, int style = 0)
         {
             var cells = new StringBuilder();
             int column = 1;
-            foreach (string value in values ?? Array.Empty<string>())
+            foreach (object? value in values ?? Array.Empty<object?>())
             {
-                string styleAttribute = style > 0 ? " s=\"" + style + "\"" : "";
-                cells.Append("<c r=\"").Append(ColumnName(column)).Append(rowIndex).Append("\" t=\"inlineStr\"").Append(styleAttribute).Append(">")
-                    .Append("<is><t xml:space=\"preserve\">").Append(Xml(value)).Append("</t></is></c>");
+                cells.Append(Cell(ColumnName(column) + rowIndex, value, style));
                 column++;
             }
 
             return "<row r=\"" + rowIndex + "\">" + cells + "</row>";
         }
+
+        private static string Cell(string reference, object? value, int style)
+        {
+            if (TryNumericValue(value, out string numericValue))
+                return ValueCell(reference, numericValue, null, style);
+
+            if (value is bool booleanValue)
+                return ValueCell(reference, booleanValue ? "1" : "0", "b", style);
+
+            if (value is DateTime dateTimeValue)
+                return ValueCell(reference, XmlConvert.ToString(dateTimeValue, XmlDateTimeSerializationMode.RoundtripKind), "d", style == 0 ? 3 : style);
+
+            if (value is DateTimeOffset dateTimeOffsetValue)
+                return ValueCell(reference, XmlConvert.ToString(dateTimeOffsetValue), "d", style == 0 ? 3 : style);
+
+            if (value is DateOnly dateValue)
+                return ValueCell(reference, dateValue.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), "d", style == 0 ? 3 : style);
+
+            string styleAttribute = StyleAttribute(style);
+            return "<c r=\"" + reference + "\" t=\"inlineStr\"" + styleAttribute + ">" +
+                   "<is><t xml:space=\"preserve\">" + Xml(CellText(value)) + "</t></is></c>";
+        }
+
+        private static string ValueCell(string reference, string value, string? type, int style)
+        {
+            string typeAttribute = type == null ? "" : " t=\"" + type + "\"";
+            return "<c r=\"" + reference + "\"" + typeAttribute + StyleAttribute(style) + "><v>" + Xml(value) + "</v></c>";
+        }
+
+        private static string StyleAttribute(int style)
+            => style > 0 ? " s=\"" + style + "\"" : "";
+
+        private static bool TryNumericValue(object? value, out string numericValue)
+        {
+            switch (value)
+            {
+                case byte or sbyte or short or ushort or int or uint or long or ulong or decimal:
+                    numericValue = Convert.ToString(value, CultureInfo.InvariantCulture) ?? "0";
+                    return true;
+                case float floatValue when float.IsFinite(floatValue):
+                    numericValue = floatValue.ToString("R", CultureInfo.InvariantCulture);
+                    return true;
+                case double doubleValue when double.IsFinite(doubleValue):
+                    numericValue = doubleValue.ToString("R", CultureInfo.InvariantCulture);
+                    return true;
+                case Half halfValue when Half.IsFinite(halfValue):
+                    numericValue = halfValue.ToString("R", CultureInfo.InvariantCulture);
+                    return true;
+                default:
+                    numericValue = "";
+                    return false;
+            }
+        }
+
+        private static string CellText(object? value)
+            => value as string ?? Convert.ToString(value, CultureInfo.CurrentCulture) ?? "";
 
         private static string DocumentXml(string title, IEnumerable<ExportSection> sections)
         {
@@ -132,10 +188,10 @@ namespace StandaloneBaseball
             return table.ToString();
         }
 
-        private static string TableRow(IEnumerable<string> values, bool header)
+        private static string TableRow(IEnumerable<object?> values, bool header)
         {
             var row = new StringBuilder("<w:tr>");
-            foreach (string value in values ?? Array.Empty<string>())
+            foreach (object? value in values ?? Array.Empty<object?>())
             {
                 row.Append("<w:tc><w:tcPr><w:tcW w:w=\"2400\" w:type=\"dxa\"/>");
                 if (header)
@@ -143,7 +199,7 @@ namespace StandaloneBaseball
                 row.Append("</w:tcPr><w:p><w:r>");
                 if (header)
                     row.Append("<w:rPr><w:b/><w:color w:val=\"FFFFFF\"/></w:rPr>");
-                row.Append("<w:t xml:space=\"preserve\">").Append(Xml(value)).Append("</w:t></w:r></w:p></w:tc>");
+                row.Append("<w:t xml:space=\"preserve\">").Append(Xml(CellText(value))).Append("</w:t></w:r></w:p></w:tc>");
             }
             row.Append("</w:tr>");
             return row.ToString();
@@ -208,7 +264,7 @@ namespace StandaloneBaseball
                "<fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF173F8A\"/><bgColor indexed=\"64\"/></patternFill></fill></fills>" +
                "<borders count=\"2\"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style=\"thin\"><color rgb=\"FF999999\"/></left><right style=\"thin\"><color rgb=\"FF999999\"/></right><top style=\"thin\"><color rgb=\"FF999999\"/></top><bottom style=\"thin\"><color rgb=\"FF999999\"/></bottom><diagonal/></border></borders>" +
                "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>" +
-               "<cellXfs count=\"3\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"1\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyFill=\"1\" applyFont=\"1\"/></cellXfs>" +
+               "<cellXfs count=\"4\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"1\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyFill=\"1\" applyFont=\"1\"/><xf numFmtId=\"22\" fontId=\"0\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyNumberFormat=\"1\"/></cellXfs>" +
                "</styleSheet>";
 
         private static string AppProperties(string app)

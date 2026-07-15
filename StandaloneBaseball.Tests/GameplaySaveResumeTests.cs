@@ -97,6 +97,81 @@ public sealed class GameplaySaveResumeTests
         }
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(", \"State\": null")]
+    public void LeagueStore_LoadDoesNotFabricateStateForMalformedInProgressSave(string stateProperty)
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "DansRBI-GameplaySaveTests", Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(directory, "malformed" + LeagueStore.Extension);
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(path, $$"""
+                {
+                  "SaveSchemaVersion": 2,
+                  "InProgressGames": [
+                    {
+                      "Label": "Interrupted save"{{stateProperty}}
+                    }
+                  ]
+                }
+                """);
+
+            InProgressGameSave restored = Assert.Single(LeagueStore.Load(path).InProgressGames);
+
+            Assert.Equal("Interrupted save", restored.Label);
+            Assert.Null(restored.State);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LeagueStore_LoadMigratesValidVersion1InProgressSave()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "DansRBI-GameplaySaveTests", Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(directory, "legacy-resume" + LeagueStore.Extension);
+        var away = CreateTeam("Legacy Away");
+        var home = CreateTeam("Legacy Home");
+        var league = new LeagueFile
+        {
+            SaveSchemaVersion = 1,
+            Teams = new List<Team> { away, home },
+            InProgressGames = new List<InProgressGameSave>
+            {
+                new InProgressGameSave
+                {
+                    AwayTeamId = away.Id,
+                    HomeTeamId = home.Id,
+                    State = CreateSavedState(away, home)
+                }
+            }
+        };
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(league));
+
+            LeagueFile restoredLeague = LeagueStore.Load(path);
+            GameplayState restored = Assert.Single(restoredLeague.InProgressGames).State;
+
+            Assert.Equal(LeagueStore.CurrentSaveSchemaVersion, restoredLeague.SaveSchemaVersion);
+            Assert.NotNull(restored);
+            Assert.Equal(GameMode.PlayerVsPlayer, restored.Mode);
+            Assert.Equal(2, restored.PlayByPlay.Count);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static GameplayState CreateSavedState(Team away, Team home)
     {
         var state = GameplayState.Create(away, home, GameMode.PlayerVsPlayer);

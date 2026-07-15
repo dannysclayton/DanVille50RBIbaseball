@@ -32,8 +32,8 @@ namespace StandaloneBaseball
 
     public sealed class SharedPitchRequest
     {
-        public Player Batter { get; set; }
-        public Player Pitcher { get; set; }
+        public required Player Batter { get; set; }
+        public required Player Pitcher { get; set; }
         public GameplayPitchType PitchType { get; set; } = GameplayPitchType.Fastball;
         public SharedSwingType SwingType { get; set; }
         public double PitchX { get; set; }
@@ -56,8 +56,8 @@ namespace StandaloneBaseball
 
     public sealed class SharedBattedBallRequest
     {
-        public Player Batter { get; set; }
-        public Player Pitcher { get; set; }
+        public required Player Batter { get; set; }
+        public required Player Pitcher { get; set; }
         public GameplayPitchType PitchType { get; set; } = GameplayPitchType.Fastball;
         public double ContactQuality { get; set; }
         public int PitcherAdjustmentPercent { get; set; }
@@ -74,7 +74,7 @@ namespace StandaloneBaseball
         public static SharedPitchResolution ResolvePitch(Random rng, SharedPitchRequest request)
         {
             if (rng == null) throw new ArgumentNullException(nameof(rng));
-            request ??= new SharedPitchRequest();
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
             int pitchEffectiveness = PitchProfileEngine.PitchEffectiveness(request.Pitcher, request.PitchType);
             int batterPitchAdjustment = PitchProfileEngine.BatterPitchAdjustment(request.Batter, request.PitchType);
@@ -150,7 +150,7 @@ namespace StandaloneBaseball
         public static SharedBattedBallResultType ResolveBattedBall(Random rng, SharedBattedBallRequest request)
         {
             if (rng == null) throw new ArgumentNullException(nameof(rng));
-            request ??= new SharedBattedBallRequest();
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
             int contact = Rating(request.Batter, p => p.Contact, 50, request.BatterBoostPercent) + PitchProfileEngine.BatterPitchAdjustment(request.Batter, request.PitchType);
             int power = Rating(request.Batter, p => p.Power, 50, request.BatterBoostPercent);

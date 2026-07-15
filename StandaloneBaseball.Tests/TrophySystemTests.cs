@@ -71,10 +71,10 @@ public sealed class TrophySystemTests
         List<AwardTrophyRecord> trophies = TrophyCatalog.Build(league);
 
         Assert.Equal(2, trophies.Count);
-        AwardTrophyRecord latest = Assert.Single(trophies.Where(trophy => trophy.RecipientId == secondWinnerId));
+        AwardTrophyRecord latest = Assert.Single(trophies, trophy => trophy.RecipientId == secondWinnerId);
         Assert.Equal(2, latest.SeasonNumber);
         Assert.Equal("Nolan Ryan Award", latest.AwardName);
-        AwardTrophyRecord first = Assert.Single(trophies.Where(trophy => trophy.RecipientId == firstWinnerId));
+        AwardTrophyRecord first = Assert.Single(trophies, trophy => trophy.RecipientId == firstWinnerId);
         Assert.Equal(1, first.SeasonNumber);
         Assert.DoesNotContain(trophies, trophy => trophy.RecipientName == "Finalist Only");
     }

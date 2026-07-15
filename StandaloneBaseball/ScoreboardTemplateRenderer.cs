@@ -180,7 +180,7 @@ namespace StandaloneBaseball
             if (string.IsNullOrWhiteSpace(text) || bounds.Width <= 0 || bounds.Height <= 0)
                 return;
 
-            Font font = null;
+            Font? font = null;
             for (int size = Math.Max(minSize, maxSize); size >= minSize; size--)
             {
                 var candidate = new Font(FontFamily.GenericSansSerif, size, style);

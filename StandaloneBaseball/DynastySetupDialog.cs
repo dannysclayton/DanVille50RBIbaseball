@@ -26,10 +26,10 @@ namespace StandaloneBaseball
         private readonly NumericUpDown _nonConferenceAwayBox;
         private readonly TextBox _assetLibraryBox;
 
-        public LeagueRules SelectedRules { get; private set; }
-        public string DynastyName { get; private set; }
-        public string OwnerFullName { get; private set; }
-        public string AssetLibraryPath { get; private set; }
+        public LeagueRules SelectedRules { get; private set; } = new LeagueRules();
+        public string DynastyName { get; private set; } = "";
+        public string OwnerFullName { get; private set; } = "";
+        public string AssetLibraryPath { get; private set; } = "";
 
         public DynastySetupDialog(
             LeagueRules? currentRules = null,
@@ -198,7 +198,7 @@ namespace StandaloneBaseball
                 OwnerFullName = NormalizeOwnerName(_ownerNameBox.Text);
                 AssetLibraryPath = (_assetLibraryBox.Text ?? "").Trim();
                 SelectedRules = BuildRules();
-                if (!ValidateScheduleRules(SelectedRules.Schedule, out string error))
+                if (!ValidateScheduleRules(SelectedRules.Schedule, out string? error))
                 {
                     MessageBox.Show(this, error, "Schedule rules", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;

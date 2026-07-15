@@ -30,7 +30,7 @@ namespace StandaloneBaseball
         private readonly TextBox _pathBox;
         private readonly Button _acceptButton;
 
-        public string SelectedPath { get; private set; }
+        public string SelectedPath { get; private set; } = "";
 
         public AssetLibrarySetupDialog(string? currentPath = null)
         {
@@ -142,7 +142,7 @@ namespace StandaloneBaseball
             string path = (_pathBox.Text ?? "").Trim();
             if (Directory.Exists(path))
                 return path;
-            string parent = string.IsNullOrWhiteSpace(path) ? null : Path.GetDirectoryName(path);
+            string? parent = string.IsNullOrWhiteSpace(path) ? null : Path.GetDirectoryName(path);
             return Directory.Exists(parent) ? parent : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 

@@ -40,7 +40,13 @@ Build and audit Public Version 1.0:
 .\publish-public.ps1
 ```
 
-The publish script performs a locked restore, produces the self-contained executable, verifies version metadata and required files, rejects uncleared packaged media, and writes SHA-256 checksums.
+Refresh the checked-in downloadable release from the same audited output:
+
+```powershell
+.\publish-public.ps1 -UpdateCheckedInRelease
+```
+
+The publish script performs a locked restore, produces the self-contained executable, verifies version metadata and required files, rejects uncleared packaged media, and writes SHA-256 checksums. The release-refresh switch replaces `release/public-v1.0` only after those checks pass and regenerates its checksum manifest.
 
 ## Media And Attribution
 

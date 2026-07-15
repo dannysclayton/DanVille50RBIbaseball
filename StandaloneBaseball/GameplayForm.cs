@@ -116,10 +116,10 @@ namespace StandaloneBaseball
         private readonly List<CutsceneDefinition> _awayCutscenes = new List<CutsceneDefinition>();
         private readonly List<CutsceneDefinition> _homeCutscenes = new List<CutsceneDefinition>();
         private NationalAnthemCutsceneDefault _nationalAnthemCutsceneDefault = NationalAnthemCutsceneDefault.CurrentGameSettings;
-        private Button _intentionalWalkButton;
-        private Button _moundVisitButton;
-        private Button _saveGameButton;
-        private ComboBox _inputModeCombo;
+        private Button? _intentionalWalkButton;
+        private Button? _moundVisitButton;
+        private Button? _saveGameButton;
+        private ComboBox? _inputModeCombo;
         private GameMode _mode = GameMode.UserVsCpu;
         private bool _paused;
         private bool _controllerWasConnected;
@@ -825,6 +825,18 @@ namespace StandaloneBaseball
             RefreshInputModeComboItems();
         }
 
+        internal void ClearExactReplayFrame()
+        {
+            _state.Phase = GameplayRenderingPhase.Ready;
+            _state.BallVisible = false;
+            _state.BallPosition = new PointF(0.5f, 0.62f);
+            _state.BallHeight = 0f;
+            _state.BallTrail = 0f;
+            _state.ActiveFielderIndex = 1;
+            _state.ReplayActors.Clear();
+            _surface.Invalidate();
+        }
+
         internal void ApplyExactReplayFrame(ReplayRenderFrame frame)
         {
             if (frame == null)
@@ -835,6 +847,7 @@ namespace StandaloneBaseball
             _state.BallPosition = new PointF(Math.Clamp(frame.BallX, 0f, 1f), Math.Clamp(frame.BallY, 0f, 1f));
             _state.BallHeight = Math.Max(0f, frame.BallZ);
             _state.BallTrail = frame.BallVisible ? Math.Max(0f, 1f - frame.Progress) : 0f;
+            _state.ActiveFielderIndex = 1;
             _state.ReplayActors.Clear();
 
             foreach (ReplayRenderActor actor in frame.Actors)
@@ -1030,7 +1043,7 @@ namespace StandaloneBaseball
         private static GamePlayByPlayEntry ClonePlayByPlayEntry(GamePlayByPlayEntry entry)
         {
             if (entry == null)
-                return null;
+                throw new ArgumentNullException(nameof(entry));
 
             return new GamePlayByPlayEntry
             {
@@ -1048,7 +1061,7 @@ namespace StandaloneBaseball
         private static HalfInningSnapshot CloneHalfInningSnapshot(HalfInningSnapshot inning)
         {
             if (inning == null)
-                return null;
+                throw new ArgumentNullException(nameof(inning));
 
             return new HalfInningSnapshot
             {
@@ -1061,13 +1074,13 @@ namespace StandaloneBaseball
             };
         }
 
-        private BaseRunner SnapshotBaseRunner(int baseIndex)
+        private BaseRunner? SnapshotBaseRunner(int baseIndex)
         {
             if (baseIndex < 0 || baseIndex >= _state.Bases.Length)
                 return null;
 
             var baseState = _state.Bases[baseIndex];
-            if (!baseState.Occupied || baseState.Player == null)
+            if (!baseState.Occupied || baseState.Player == null || baseState.Team == null)
                 return null;
 
             return new BaseRunner
@@ -1083,7 +1096,7 @@ namespace StandaloneBaseball
         private static PlayerGameLine CloneGameLine(PlayerGameLine line)
         {
             if (line == null)
-                return null;
+                throw new ArgumentNullException(nameof(line));
 
             return new PlayerGameLine
             {
@@ -2086,17 +2099,17 @@ namespace StandaloneBaseball
         private bool CurrentFieldingTeamCoachVisitBoostActive()
             => _state.TopHalf ? _homeCoachVisitBoostActive : _awayCoachVisitBoostActive;
 
-        private Coach CurrentFieldingHeadCoach()
+        private Coach? CurrentFieldingHeadCoach()
         {
             return HeadCoachForTeam(_state.FieldingTeam);
         }
 
-        private Coach CurrentBattingHeadCoach()
+        private Coach? CurrentBattingHeadCoach()
         {
             return HeadCoachForTeam(_state.BattingTeam);
         }
 
-        private static Coach HeadCoachForTeam(Team team)
+        private static Coach? HeadCoachForTeam(Team team)
         {
             if (team == null)
                 return null;
@@ -2106,7 +2119,7 @@ namespace StandaloneBaseball
                 ?? team.Coaches?.FirstOrDefault();
         }
 
-        private static int CoachStrategyChanceAdjustment(Coach coach, int safeAdjustment, int aggressiveAdjustment)
+        private static int CoachStrategyChanceAdjustment(Coach? coach, int safeAdjustment, int aggressiveAdjustment)
         {
             return coach?.Strategy switch
             {
@@ -2116,7 +2129,7 @@ namespace StandaloneBaseball
             };
         }
 
-        private static string CoachDisplayLabel(Coach coach)
+        private static string CoachDisplayLabel(Coach? coach)
             => coach == null ? "Coach" : coach.Name + " (" + CoachStyleLabel(coach.Style) + ", " + coach.Strategy + ")";
 
         private static string CoachStyleLabel(CoachStyle style)
@@ -2226,7 +2239,7 @@ namespace StandaloneBaseball
                 return;
             }
 
-            Player tagFielder = TagFielderForTarget(candidate.FromBase);
+            Player? tagFielder = TagFielderForTarget(candidate.FromBase);
             int pickoffScore = PlayerRating(pitcher, p => p.Pickoff, 50) +
                 PlayerRating(pitcher, p => p.HoldRunner, 50) +
                 PlayerRating(tagFielder, p => p.TagRating, 50) / 2 +
@@ -2333,7 +2346,7 @@ namespace StandaloneBaseball
         {
             Player pitcher = CurrentPitcher();
             Player? catcher = FindDefensivePlayer("C") ?? _state.FieldingTeam?.Roster?.FirstOrDefault(IsPitcherOrCatcherPosition);
-            Player tagFielder = TagFielderForTarget(candidate.TargetBase);
+            Player? tagFielder = TagFielderForTarget(candidate.TargetBase);
             int scoreDifferential = _state.TopHalf
                 ? _state.AwayScore - _state.HomeScore
                 : _state.HomeScore - _state.AwayScore;
@@ -2355,7 +2368,7 @@ namespace StandaloneBaseball
             return result;
         }
 
-        private void ApplyStealResult(StealCandidate candidate, StealAttemptResult result, Player? catcher, Player tagFielder, Player pitcher)
+        private void ApplyStealResult(StealCandidate candidate, StealAttemptResult result, Player? catcher, Player? tagFielder, Player pitcher)
         {
             bool visitorBatting = _state.TopHalf;
             var runnerSnapshot = SnapshotBase(candidate.FromBase);
@@ -2466,7 +2479,7 @@ namespace StandaloneBaseball
                 if (!advance.Attempt)
                     continue;
 
-                Player targetFielder = TagFielderForTarget(targetBase);
+                Player? targetFielder = TagFielderForTarget(targetBase);
                 RegisterParticipation(snapshot.Player, _state.BattingTeam, InjuryExposureType.Baserunning);
                 RegisterParticipation(catcher, _state.FieldingTeam, InjuryExposureType.FieldingPlay);
                 RegisterParticipation(targetFielder, _state.FieldingTeam, InjuryExposureType.FieldingPlay);
@@ -2541,7 +2554,7 @@ namespace StandaloneBaseball
                 catcherLine.PassedBalls++;
         }
 
-        private void RecordPitchEscapeOutStats(Player catcher, Player tagFielder, Player pitcher)
+        private void RecordPitchEscapeOutStats(Player catcher, Player? tagFielder, Player pitcher)
         {
             var pitcherLine = LiveLine(pitcher, _state.FieldingTeam, pitcher: true);
             if (pitcherLine != null)
@@ -2565,7 +2578,7 @@ namespace StandaloneBaseball
                 PlayerRating(catcher, p => p.TagRating, 50) / 2) / 3;
         }
 
-        private void RecordLiveStealStats(Player runner, Player? catcher, Player tagFielder, Player pitcher, StealAttemptResult result)
+        private void RecordLiveStealStats(Player runner, Player? catcher, Player? tagFielder, Player pitcher, StealAttemptResult result)
         {
             RegisterParticipation(runner, _state.BattingTeam, InjuryExposureType.StealOrSlide);
             RegisterParticipation(catcher, _state.FieldingTeam, InjuryExposureType.FieldingPlay);
@@ -2712,10 +2725,10 @@ namespace StandaloneBaseball
             baseState.Earned = true;
         }
 
-        private Player FindDefensivePlayer(string label)
+        private Player? FindDefensivePlayer(string label)
             => _state.Fielders.FirstOrDefault(f => string.Equals(f.Label, label, StringComparison.OrdinalIgnoreCase))?.Player;
 
-        private Player TagFielderForTarget(int targetBase)
+        private Player? TagFielderForTarget(int targetBase)
         {
             if (targetBase >= 4)
                 return FindDefensivePlayer("C");
@@ -2726,7 +2739,7 @@ namespace StandaloneBaseball
             return FindDefensivePlayer("1B");
         }
 
-        private static bool IsPitcherOrCatcherPosition(Player player)
+        private static bool IsPitcherOrCatcherPosition(Player? player)
             => (player?.Positions ?? "")
                 .Split(new[] { '/', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Any(p => string.Equals(p.Trim(), "C", StringComparison.OrdinalIgnoreCase));
@@ -2877,7 +2890,8 @@ namespace StandaloneBaseball
         }
 
         private Player CurrentPitcher()
-            => _state.CurrentPitcherPlayer();
+            => _state.CurrentPitcherPlayer()
+                ?? throw new InvalidOperationException("The fielding team has no available pitcher.");
 
         private void ApplyAllStarPitchingRuleIfNeeded()
         {
@@ -3158,9 +3172,11 @@ namespace StandaloneBaseball
             for (int offset = 0; offset < pitcherCount; offset++)
             {
                 int index = PositiveModulo(startIndex + offset, pitcherCount);
-                Player pitcher = GameplayRules.GetPitcher(team, index);
+                Player? pitcher = GameplayRules.GetPitcher(team, index);
+                if (pitcher == null)
+                    continue;
                 bool blockedStarter = PitchingRotationEngine.IsStarterBlockedFromRelief(team, pitcher);
-                if (pitcher != null && !blockedStarter && !_pitchersRemovedByRunRule.Contains(pitcher.Id))
+                if (!blockedStarter && !_pitchersRemovedByRunRule.Contains(pitcher.Id))
                     return index;
             }
 
@@ -3257,7 +3273,7 @@ namespace StandaloneBaseball
                     if (earned)
                         pitcherLine.ER++;
                 }
-                if (_reliefPitcherFatigue.TryGetValue(pitcher.Id, out ReliefPitcherFatigueState reliefState) &&
+                if (_reliefPitcherFatigue.TryGetValue(pitcher.Id, out ReliefPitcherFatigueState? reliefState) &&
                     reliefState.EnteredInSaveSituation && !TeamHasLead(TeamForPlayer(pitcher)))
                 {
                     reliefState.LeadPreserved = false;
@@ -3284,7 +3300,7 @@ namespace StandaloneBaseball
                 .GroupBy(player => player.Id)
                 .Select(group => group.First()))
             {
-                PlayerGameLine line = LiveLine(player, _state.FieldingTeam, pitcher: false);
+                PlayerGameLine? line = LiveLine(player, _state.FieldingTeam, pitcher: false);
                 if (line != null)
                     line.DefensiveOuts += outs;
             }
@@ -3450,7 +3466,7 @@ namespace StandaloneBaseball
             int nextIndex = FindNextAvailablePitcherIndex(_state.FieldingTeam, _state.CurrentPitcherIndex + 1);
             if (nextIndex < 0)
             {
-                Player emergencyPitcher = FindEmergencyPositionPlayer(_state.FieldingTeam);
+                Player? emergencyPitcher = FindEmergencyPositionPlayer(_state.FieldingTeam);
                 if (emergencyPitcher == null)
                 {
                     _state.ModeLabel = pitcher.Name + " must be removed: " + reason + " (no position player available)";
@@ -3485,7 +3501,7 @@ namespace StandaloneBaseball
             TriggerCutscene(CutsceneTrigger.PitcherChange, _state.FieldingTeam);
         }
 
-        private Player FindEmergencyPositionPlayer(Team team)
+        private Player? FindEmergencyPositionPlayer(Team team)
         {
             if (team?.Roster == null)
                 return null;
@@ -3556,7 +3572,7 @@ namespace StandaloneBaseball
             if (emergencyPitcher == null)
                 return;
 
-            Player topStarter = team?.Roster?
+            Player? topStarter = team?.Roster?
                 .Where(p => p.Role == PlayerRole.Pitcher)
                 .OrderByDescending(p => p.Pitching + p.Stamina)
                 .FirstOrDefault();
@@ -3575,8 +3591,8 @@ namespace StandaloneBaseball
                 return;
             }
 
-            Player awayStarter = GameplayRules.GetPitcher(_state.AwayTeam, _state.AwayPitcherIndex);
-            Player homeStarter = GameplayRules.GetPitcher(_state.HomeTeam, _state.HomePitcherIndex);
+            Player? awayStarter = GameplayRules.GetPitcher(_state.AwayTeam, _state.AwayPitcherIndex);
+            Player? homeStarter = GameplayRules.GetPitcher(_state.HomeTeam, _state.HomePitcherIndex);
             _awayStarterPitcherId = liveRules.AwayStarterPitcherId != Guid.Empty
                 ? liveRules.AwayStarterPitcherId
                 : awayStarter?.Id ?? Guid.Empty;
@@ -3655,8 +3671,8 @@ namespace StandaloneBaseball
 
         private void InitializeStarterFatigueTracking()
         {
-            Player awayStarter = GameplayRules.GetPitcher(_state.AwayTeam, _state.AwayPitcherIndex);
-            Player homeStarter = GameplayRules.GetPitcher(_state.HomeTeam, _state.HomePitcherIndex);
+            Player? awayStarter = GameplayRules.GetPitcher(_state.AwayTeam, _state.AwayPitcherIndex);
+            Player? homeStarter = GameplayRules.GetPitcher(_state.HomeTeam, _state.HomePitcherIndex);
             _awayStarterPitcherId = awayStarter?.Id ?? Guid.Empty;
             _homeStarterPitcherId = homeStarter?.Id ?? Guid.Empty;
             _awayStarterPitchCount = 0;
@@ -4261,8 +4277,8 @@ namespace StandaloneBaseball
                 return false;
 
             int differential = BattingTeamScoreDifferential();
-            Player batter = _state.CurrentBatterPlayer();
-            Player runner = BestHitAndRunRunner();
+            Player? batter = _state.CurrentBatterPlayer();
+            Player? runner = BestHitAndRunRunner();
             int runnerSpeed = PlayerRating(runner, p => p.Speed, 50) + PlayerRating(runner, p => p.BaseRunning, 50);
             int contact = PlayerRating(batter, p => p.Contact, 50);
             bool rightCall = differential >= -3 && differential <= 2 && runnerSpeed >= 100 && contact >= 48;
@@ -4274,7 +4290,7 @@ namespace StandaloneBaseball
                 HasScoringOpportunity());
         }
 
-        private Player BestHitAndRunRunner()
+        private Player? BestHitAndRunRunner()
         {
             for (int i = Math.Min(2, _state.Bases.Length - 1); i >= 0; i--)
             {
@@ -4400,15 +4416,15 @@ namespace StandaloneBaseball
             if (!result.IsBalk)
                 return false;
 
-            PlayerGameLine pitcherLine = LiveLine(pitcher, _state.FieldingTeam, pitcher: true);
+            PlayerGameLine? pitcherLine = LiveLine(pitcher, _state.FieldingTeam, pitcher: true);
             if (pitcherLine != null)
                 pitcherLine.Balks++;
 
-            Player scoringRunner = _state.Bases[2].Occupied ? _state.Bases[2].Player : null;
+            Player? scoringRunner = _state.Bases[2].Occupied ? _state.Bases[2].Player : null;
             int runsScored = CaptureRunsScoredByBattingTeam(() => _state.AdvanceRunners(false, _rng));
             if (runsScored > 0 && scoringRunner != null)
             {
-                PlayerGameLine runnerLine = LiveLine(scoringRunner, _state.BattingTeam, pitcher: false);
+                PlayerGameLine? runnerLine = LiveLine(scoringRunner, _state.BattingTeam, pitcher: false);
                 if (runnerLine != null)
                     runnerLine.R += runsScored;
             }
@@ -4565,7 +4581,7 @@ namespace StandaloneBaseball
                 _state.BallTrail = 1f;
                 _pendingBattedBallResult = SharedGameEngine.ResolveBattedBall(_rng, new SharedBattedBallRequest
                 {
-                    Batter = _state.CurrentBatterPlayer(),
+                    Batter = _state.CurrentBatterPlayer() ?? throw new InvalidOperationException("The batting team has no current batter."),
                     Pitcher = CurrentPitcher(),
                     PitchType = _currentPitchType,
                     ContactQuality = resolution.ContactQuality,
@@ -4621,7 +4637,7 @@ namespace StandaloneBaseball
         {
             return new SharedPitchRequest
             {
-                Batter = _state.CurrentBatterPlayer(),
+                Batter = _state.CurrentBatterPlayer() ?? throw new InvalidOperationException("The batting team has no current batter."),
                 Pitcher = CurrentPitcher(),
                 PitchType = _currentPitchType,
                 SwingType = swingType,
@@ -4681,7 +4697,7 @@ namespace StandaloneBaseball
                 return;
             }
 
-            GameplayRenderingPlayerMarker fielder = PickBuntFielder();
+            GameplayRenderingPlayerMarker? fielder = PickBuntFielder();
             int defenseScore = BuntDefenseScore(fielder);
             int buntScore = PlayerRating(batter, p => p.Contact, 50) +
                 PlayerRating(batter, p => p.Speed, 50) / 2 +
@@ -4734,7 +4750,7 @@ namespace StandaloneBaseball
             PlayAfterPitchRunnerPromptIfNeeded();
         }
 
-        private GameplayRenderingPlayerMarker PickBuntFielder()
+        private GameplayRenderingPlayerMarker? PickBuntFielder()
         {
             string[] labels = _defensiveAlignmentCall switch
             {
@@ -5013,7 +5029,7 @@ namespace StandaloneBaseball
             if (play.Runner == null || fielder?.Player == null)
                 return false;
 
-            Player targetFielder = TagFielderForTarget(play.TargetBase);
+            Player? targetFielder = TagFielderForTarget(play.TargetBase);
             int runnerScore =
                 PlayerRating(play.Runner, p => p.Speed, 50) +
                 PlayerRating(play.Runner, p => p.BaseRunning, 50) +
@@ -5063,7 +5079,7 @@ namespace StandaloneBaseball
             Player pitcher,
             LiveHitType hitType)
         {
-            Player targetFielder = TagFielderForTarget(play.TargetBase);
+            Player? targetFielder = TagFielderForTarget(play.TargetBase);
             RegisterParticipation(play.Runner, _state.BattingTeam, InjuryExposureType.Collision);
             RegisterParticipation(targetFielder, _state.FieldingTeam, InjuryExposureType.Collision);
             RecordDefensiveAssistAndPutout(fielder?.Player, targetFielder);
@@ -5379,7 +5395,7 @@ namespace StandaloneBaseball
             SharedBattedBallResultType outcome = _pendingBattedBallResult ??
                 SharedGameEngine.ResolveBattedBall(_rng, new SharedBattedBallRequest
                 {
-                    Batter = _state.CurrentBatterPlayer(),
+                    Batter = _state.CurrentBatterPlayer() ?? throw new InvalidOperationException("The batting team has no current batter."),
                     Pitcher = CurrentPitcher(),
                     PitchType = _currentPitchType,
                     ContactQuality = 0.5,
@@ -5406,7 +5422,7 @@ namespace StandaloneBaseball
                 };
                 bool homeRun = hitType == LiveHitType.HomeRun;
                 bool grandSlam = homeRun && _state.OccupiedBaseCount() == 3;
-                GameplayRenderingPlayerMarker fielder = PickBallTargetFielder();
+                GameplayRenderingPlayerMarker? fielder = PickBallTargetFielder();
                 LiveContestedBasePlay contestedPlay = homeRun ? default : PickContestedBasePlay(hitType, fielder);
                 if (!homeRun && contestedPlay.Runner != null && DefenseWinsContestedBasePlay(contestedPlay, fielder, hitType))
                 {
@@ -5510,7 +5526,9 @@ namespace StandaloneBaseball
                 return false;
 
             Player? batter = _state.CurrentBatterPlayer();
-            Player runner = _state.Bases[0].Player;
+            Player? runner = _state.Bases[0].Player;
+            if (runner == null)
+                return false;
             int defense = PositionFieldingRating(fielder.Player, position) +
                 PlayerRating(fielder.Player, p => p.Accuracy, 50) / 2 +
                 PlayerRating(fielder.Player, p => p.ArmStrength, 50) / 2;
@@ -5527,7 +5545,7 @@ namespace StandaloneBaseball
 
             Player pitcher = CurrentPitcher();
             ClearBaseSlot(1);
-            PlayerGameLine batterLine = LiveLine(batter, _state.BattingTeam, pitcher: false);
+            PlayerGameLine? batterLine = LiveLine(batter, _state.BattingTeam, pitcher: false);
             if (batterLine != null)
             {
                 batterLine.AB++;
@@ -5535,15 +5553,15 @@ namespace StandaloneBaseball
                 batterLine.GroundedIntoDoublePlays++;
             }
 
-            PlayerGameLine pitcherLine = LiveLine(pitcher, _state.FieldingTeam, pitcher: true);
+            PlayerGameLine? pitcherLine = LiveLine(pitcher, _state.FieldingTeam, pitcher: true);
             if (pitcherLine != null)
             {
                 pitcherLine.BattersFaced++;
                 pitcherLine.IPOuts += 2;
             }
 
-            Player pivot = position == "SS" ? FindDefensivePlayer("2B") : FindDefensivePlayer("SS");
-            Player first = FindDefensivePlayer("1B");
+            Player? pivot = position == "SS" ? FindDefensivePlayer("2B") : FindDefensivePlayer("SS");
+            Player? first = FindDefensivePlayer("1B");
             RegisterParticipation(runner, _state.BattingTeam, InjuryExposureType.Collision);
             RegisterParticipation(pivot, _state.FieldingTeam, InjuryExposureType.Collision);
             CreditDoublePlayFielder(fielder.Player, assist: position != "1B", putout: position == "1B", teamCredit: true);
@@ -5583,7 +5601,7 @@ namespace StandaloneBaseball
             if (player == null)
                 return;
             RegisterParticipation(player, _state.FieldingTeam, InjuryExposureType.FieldingPlay);
-            PlayerGameLine line = LiveLine(player, _state.FieldingTeam, pitcher: false);
+            PlayerGameLine? line = LiveLine(player, _state.FieldingTeam, pitcher: false);
             if (line == null)
                 return;
             if (assist)
@@ -5601,7 +5619,9 @@ namespace StandaloneBaseball
             if (_state.Outs >= 2 || fielder == null || !IsFlyOutLabel(outLabel) || _state.Bases.Length < 3 || !_state.Bases[2].Occupied)
                 return false;
 
-            Player runner = _state.Bases[2].Player;
+            Player? runner = _state.Bases[2].Player;
+            if (runner == null)
+                return false;
             Player? batter = _state.CurrentBatterPlayer();
             Player pitcher = CurrentPitcher();
             int runnerScore = PlayerRating(runner, p => p.Speed, 50) +
@@ -5647,7 +5667,7 @@ namespace StandaloneBaseball
                 return false;
 
             RegisterParticipation(fielder.Player, _state.FieldingTeam, InjuryExposureType.FieldingPlay);
-            Player batter = _state.CurrentBatterPlayer();
+            Player? batter = _state.CurrentBatterPlayer();
             Player pitcher = CurrentPitcher();
             foreach (var baseState in _state.Bases.Where(baseState => baseState.Occupied))
                 RegisterParticipation(baseState.Player, _state.BattingTeam, InjuryExposureType.Baserunning);
@@ -5805,7 +5825,7 @@ namespace StandaloneBaseball
                 : _state.HomeScore != _state.AwayScore;
         }
 
-        private Team WinningTeam()
+        private Team? WinningTeam()
         {
             if (_state == null)
                 return null;
@@ -6143,7 +6163,7 @@ namespace StandaloneBaseball
             _visitorRunnersSound.PlayOnce(LaunchSoundPlayer.FindVisitorRunnersPrompt());
         }
 
-        private Player PickExtraInningRunner(Team team, IReadOnlyList<Player> candidates, IReadOnlyDictionary<Guid, int> pinchUses)
+        private Player? PickExtraInningRunner(Team team, IReadOnlyList<Player> candidates, IReadOnlyDictionary<Guid, int> pinchUses)
         {
             if (candidates == null || candidates.Count == 0)
                 return null;
@@ -6162,7 +6182,7 @@ namespace StandaloneBaseball
             }
         }
 
-        private Player PickCourtesyRunner(Team team, Player protectedPlayer, IReadOnlyList<Player> candidates, IReadOnlyDictionary<Guid, int> pinchUses)
+        private Player? PickCourtesyRunner(Team team, Player protectedPlayer, IReadOnlyList<Player> candidates, IReadOnlyDictionary<Guid, int> pinchUses)
         {
             if (candidates == null || candidates.Count == 0)
                 return null;

@@ -13,7 +13,7 @@ namespace StandaloneBaseball
         private readonly DataGridView _grid;
         private readonly Button _pickButton;
 
-        public Player SelectedPlayer { get; private set; }
+        public Player? SelectedPlayer { get; private set; }
 
         public ExtraInningRunnerPickerDialog(
             Team team,

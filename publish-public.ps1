@@ -1,5 +1,6 @@
 param(
     [string]$OutputPath = (Join-Path $PSScriptRoot "artifacts\public-v1.0"),
+    [switch]$UpdateCheckedInRelease,
     [switch]$BuildInstaller,
     [string]$InstallerOutputPath = (Join-Path $PSScriptRoot "artifacts\installers\public-v1.0"),
     [switch]$Sign,
@@ -14,6 +15,9 @@ $project = Join-Path $projectRoot "StandaloneBaseball.csproj"
 $nugetConfig = Join-Path $PSScriptRoot "NuGet.config"
 $signingScript = Join-Path $PSScriptRoot "packaging\signing\Invoke-AuthenticodeSigning.ps1"
 $installerDefinition = Join-Path $PSScriptRoot "packaging\installer\PublicV1.iss"
+$checkedInReleasePath = Join-Path $PSScriptRoot "release\public-v1.0"
+$checkedInReleaseStagingPath = Join-Path $PSScriptRoot "release\public-v1.0.staging"
+$checkedInReleaseBackupPath = Join-Path $PSScriptRoot "release\public-v1.0.backup"
 
 function Get-PinnedDotNet {
     $candidates = @()
@@ -94,6 +98,193 @@ function Write-ChecksumManifest([string]$Root) {
     Set-Content -LiteralPath $manifestPath -Value $lines -Encoding ascii
 }
 
+function Assert-ChecksumManifest([string]$Root) {
+    $manifestPath = Join-Path $Root "SHA256SUMS.txt"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "Checksum manifest is missing: $manifestPath"
+    }
+
+    $rootPath = [IO.Path]::GetFullPath($Root)
+    $rootPrefix = $rootPath + [IO.Path]::DirectorySeparatorChar
+    $manifestEntries = @{}
+    foreach ($line in @(Get-Content -LiteralPath $manifestPath)) {
+        if ($line -notmatch '^(?<Hash>[0-9a-fA-F]{64})  (?<Path>.+)$') {
+            throw "Checksum manifest contains an invalid line: $line"
+        }
+
+        $relativePath = $Matches.Path.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        if ([IO.Path]::IsPathRooted($relativePath)) {
+            throw "Checksum manifest contains a rooted path: $($Matches.Path)"
+        }
+        $filePath = [IO.Path]::GetFullPath((Join-Path $rootPath $relativePath))
+        if (-not $filePath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Checksum manifest path escapes the release directory: $($Matches.Path)"
+        }
+        if ($manifestEntries.ContainsKey($Matches.Path)) {
+            throw "Checksum manifest contains a duplicate path: $($Matches.Path)"
+        }
+        $manifestEntries[$Matches.Path] = $Matches.Hash.ToLowerInvariant()
+    }
+
+    $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File |
+        Where-Object { $_.FullName -ne $manifestPath })
+    if ($files.Count -ne $manifestEntries.Count) {
+        throw "Checksum manifest contains $($manifestEntries.Count) entries for $($files.Count) release files."
+    }
+    foreach ($file in $files) {
+        $relativePath = [IO.Path]::GetRelativePath($rootPath, $file.FullName).Replace("\", "/")
+        if (-not $manifestEntries.ContainsKey($relativePath)) {
+            throw "Checksum manifest does not contain release file: $relativePath"
+        }
+        $actualHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualHash -ne $manifestEntries[$relativePath]) {
+            throw "Checksum mismatch for release file: $relativePath"
+        }
+    }
+}
+
+function Assert-PublicReleaseArtifact([string]$Root) {
+    $restrictedExtensions = @(
+        ".mp3", ".wav", ".wma",
+        ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".dib",
+        ".mp4", ".avi", ".wmv", ".mov"
+    )
+    $approvedPublicMedia = @(
+        "Assets/Trophies/baseball-mvp-trophy-template.jpg",
+        "Assets/Loading Screens/season_opening_baseball_is_back.jpg",
+        "Assets/Loading Screens/season_opening_danville50.png",
+        "Assets/Loading Screens/doubleheader_game_two.jpg"
+    )
+    $publishedMedia = @(Get-ChildItem -LiteralPath (Join-Path $Root "Assets") -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object {
+            $relativePath = [IO.Path]::GetRelativePath($Root, $_.FullName).Replace("\", "/")
+            ($restrictedExtensions -contains $_.Extension.ToLowerInvariant()) -and
+                ($approvedPublicMedia -notcontains $relativePath)
+        })
+    if ($publishedMedia.Count -gt 0) {
+        $paths = $publishedMedia | ForEach-Object { [IO.Path]::GetRelativePath($Root, $_.FullName) }
+        throw "Public publish contains $($publishedMedia.Count) uncleared media file(s):`n$($paths -join "`n")"
+    }
+
+    $requiredFiles = @(
+        "DanVille50RBIbaseball.exe",
+        "THIRD_PARTY_ATTRIBUTIONS.md",
+        "MEDIA_LICENSE_RECOMMENDATIONS.md",
+        "Assets\Data\schools.csv",
+        "Assets\Replay Templates\ReplayTemplate.rbi-replay.json",
+        "Assets\Templates\Lineup Card Template.docx",
+        "Assets\Trophies\baseball-mvp-trophy-template.jpg",
+        "Assets\Loading Screens\season_opening_baseball_is_back.jpg",
+        "Assets\Loading Screens\season_opening_danville50.png",
+        "Assets\Loading Screens\doubleheader_game_two.jpg"
+    )
+    $missing = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Root $_) -PathType Leaf) })
+    if ($missing.Count -gt 0) {
+        throw "Public publish is missing required file(s):`n$($missing -join "`n")"
+    }
+
+    $executable = Join-Path $Root "DanVille50RBIbaseball.exe"
+    $version = (Get-Item -LiteralPath $executable).VersionInfo
+    if ($version.FileVersion -ne "1.0.0.0") {
+        throw "Public executable version is $($version.FileVersion); expected 1.0.0.0."
+    }
+}
+
+function Assert-FixedReleaseRefreshPath([string]$Path) {
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $allowedPaths = @(
+        [IO.Path]::GetFullPath($checkedInReleasePath),
+        [IO.Path]::GetFullPath($checkedInReleaseStagingPath),
+        [IO.Path]::GetFullPath($checkedInReleaseBackupPath)
+    )
+    if (-not ($allowedPaths | Where-Object { $_.Equals($fullPath, [StringComparison]::OrdinalIgnoreCase) })) {
+        throw "Refusing to modify non-fixed release refresh path: $fullPath"
+    }
+}
+
+function Remove-FixedReleaseRefreshDirectory([string]$Path) {
+    Assert-FixedReleaseRefreshPath $Path
+    if (Test-Path -LiteralPath $Path) {
+        Remove-Item -LiteralPath $Path -Recurse -Force
+    }
+}
+
+function Update-CheckedInReleaseAtomically([string]$SourcePath) {
+    Assert-FixedReleaseRefreshPath $checkedInReleasePath
+    Assert-FixedReleaseRefreshPath $checkedInReleaseStagingPath
+    Assert-FixedReleaseRefreshPath $checkedInReleaseBackupPath
+
+    $releaseParent = Split-Path -Parent ([IO.Path]::GetFullPath($checkedInReleasePath))
+    foreach ($siblingPath in @($checkedInReleaseStagingPath, $checkedInReleaseBackupPath)) {
+        if (-not (Split-Path -Parent ([IO.Path]::GetFullPath($siblingPath))).Equals(
+            $releaseParent, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Release staging and backup directories must be siblings of $checkedInReleasePath."
+        }
+    }
+
+    Remove-FixedReleaseRefreshDirectory $checkedInReleaseStagingPath
+    if (Test-Path -LiteralPath $checkedInReleaseBackupPath) {
+        if (Test-Path -LiteralPath $checkedInReleasePath) {
+            Remove-FixedReleaseRefreshDirectory $checkedInReleaseBackupPath
+        }
+        else {
+            Move-Item -LiteralPath $checkedInReleaseBackupPath -Destination $checkedInReleasePath
+        }
+    }
+
+    $hadExistingRelease = Test-Path -LiteralPath $checkedInReleasePath
+    $backupCreated = $false
+    $swapCompleted = $false
+    try {
+        New-Item -ItemType Directory -Path $checkedInReleaseStagingPath | Out-Null
+        Get-ChildItem -LiteralPath $SourcePath -Force |
+            Copy-Item -Destination $checkedInReleaseStagingPath -Recurse -Force
+
+        Assert-PublicReleaseArtifact $checkedInReleaseStagingPath
+        Assert-ChecksumManifest $checkedInReleaseStagingPath
+        Write-ChecksumManifest $checkedInReleaseStagingPath
+        Assert-ChecksumManifest $checkedInReleaseStagingPath
+
+        if ($hadExistingRelease) {
+            Move-Item -LiteralPath $checkedInReleasePath -Destination $checkedInReleaseBackupPath
+            $backupCreated = $true
+        }
+        Move-Item -LiteralPath $checkedInReleaseStagingPath -Destination $checkedInReleasePath
+        $swapCompleted = $true
+
+        if ($backupCreated) {
+            Remove-FixedReleaseRefreshDirectory $checkedInReleaseBackupPath
+            $backupCreated = $false
+        }
+    }
+    catch {
+        $refreshFailure = $_
+        $swapCompleted = $false
+        if ($backupCreated -and (Test-Path -LiteralPath $checkedInReleaseBackupPath)) {
+            try {
+                Remove-FixedReleaseRefreshDirectory $checkedInReleasePath
+                Move-Item -LiteralPath $checkedInReleaseBackupPath -Destination $checkedInReleasePath
+                $backupCreated = $false
+            }
+            catch {
+                throw "Checked-in release refresh failed and rollback also failed. The previous release remains at '$checkedInReleaseBackupPath'. Refresh error: $($refreshFailure.Exception.Message) Rollback error: $($_.Exception.Message)"
+            }
+        }
+        elseif (-not $hadExistingRelease -and -not $swapCompleted) {
+            Remove-FixedReleaseRefreshDirectory $checkedInReleasePath
+        }
+        throw $refreshFailure
+    }
+    finally {
+        Remove-FixedReleaseRefreshDirectory $checkedInReleaseStagingPath
+        if ($swapCompleted -and (Test-Path -LiteralPath $checkedInReleaseBackupPath)) {
+            Remove-FixedReleaseRefreshDirectory $checkedInReleaseBackupPath
+        }
+    }
+
+    Write-Host "Checked-in public release refreshed: $checkedInReleasePath"
+}
+
 $publishPath = Get-SafeArtifactPath $OutputPath "OutputPath"
 $publishDirectoryForMsBuild = [IO.Path]::GetRelativePath($projectRoot, $publishPath) + [IO.Path]::DirectorySeparatorChar
 $installerOutput = Get-SafeArtifactPath $InstallerOutputPath "InstallerOutputPath"
@@ -127,50 +318,9 @@ try {
         throw "Public publish failed with exit code $LASTEXITCODE."
     }
 
-    $restrictedExtensions = @(
-        ".mp3", ".wav", ".wma",
-        ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".dib",
-        ".mp4", ".avi", ".wmv", ".mov"
-    )
-    $approvedPublicMedia = @(
-        "Assets/Trophies/baseball-mvp-trophy-template.jpg",
-        "Assets/Loading Screens/season_opening_baseball_is_back.jpg",
-        "Assets/Loading Screens/season_opening_danville50.png",
-        "Assets/Loading Screens/doubleheader_game_two.jpg"
-    )
-    $publishedMedia = @(Get-ChildItem -LiteralPath (Join-Path $publishPath "Assets") -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object {
-            $relativePath = [IO.Path]::GetRelativePath($publishPath, $_.FullName).Replace("\", "/")
-            ($restrictedExtensions -contains $_.Extension.ToLowerInvariant()) -and
-                ($approvedPublicMedia -notcontains $relativePath)
-        })
-    if ($publishedMedia.Count -gt 0) {
-        $paths = $publishedMedia | ForEach-Object { [IO.Path]::GetRelativePath($publishPath, $_.FullName) }
-        throw "Public publish contains $($publishedMedia.Count) uncleared media file(s):`n$($paths -join "`n")"
-    }
-
-    $requiredFiles = @(
-        "DanVille50RBIbaseball.exe",
-        "THIRD_PARTY_ATTRIBUTIONS.md",
-        "MEDIA_LICENSE_RECOMMENDATIONS.md",
-        "Assets\Data\schools.csv",
-        "Assets\Replay Templates\ReplayTemplate.rbi-replay.json",
-        "Assets\Templates\Lineup Card Template.docx",
-        "Assets\Trophies\baseball-mvp-trophy-template.jpg",
-        "Assets\Loading Screens\season_opening_baseball_is_back.jpg",
-        "Assets\Loading Screens\season_opening_danville50.png",
-        "Assets\Loading Screens\doubleheader_game_two.jpg"
-    )
-    $missing = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $publishPath $_)) })
-    if ($missing.Count -gt 0) {
-        throw "Public publish is missing required file(s):`n$($missing -join "`n")"
-    }
+    Assert-PublicReleaseArtifact $publishPath
 
     $executable = Join-Path $publishPath "DanVille50RBIbaseball.exe"
-    $version = (Get-Item -LiteralPath $executable).VersionInfo
-    if ($version.FileVersion -ne "1.0.0.0") {
-        throw "Public executable version is $($version.FileVersion); expected 1.0.0.0."
-    }
 
     if ($Sign) {
         & $signingScript -FilePath $executable -ConfigPath $SigningConfigPath
@@ -192,6 +342,10 @@ try {
         }
         Write-ChecksumManifest $installerOutput
         Write-Host "Public Version 1.0 installer complete: $installer"
+    }
+
+    if ($UpdateCheckedInRelease) {
+        Update-CheckedInReleaseAtomically $publishPath
     }
 
     Write-Host "Public Version 1.0 publish complete: $publishPath"

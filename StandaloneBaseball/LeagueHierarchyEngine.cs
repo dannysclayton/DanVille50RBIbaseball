@@ -17,7 +17,7 @@ namespace StandaloneBaseball
 
     public static class LeagueHierarchyEngine
     {
-        public static string Validate(LeagueFile league)
+        public static string? Validate(LeagueFile league)
         {
             if (league?.Structure?.Conferences == null)
                 return "The league hierarchy is missing conferences.";
@@ -91,23 +91,23 @@ namespace StandaloneBaseball
             return placements;
         }
 
-        public static LeagueHierarchyPlacement FindTeamPlacement(LeagueFile league, Guid teamId)
+        public static LeagueHierarchyPlacement? FindTeamPlacement(LeagueFile league, Guid teamId)
         {
             if (teamId == Guid.Empty)
                 return null;
             return BuildTeamPlacements(league).TryGetValue(teamId, out var placement) ? placement : null;
         }
 
-        public static Conference FindConference(LeagueFile league, Guid conferenceId)
+        public static Conference? FindConference(LeagueFile league, Guid conferenceId)
             => (league?.Structure?.Conferences ?? new List<Conference>())
                 .FirstOrDefault(conference => conference.Id == conferenceId);
 
-        public static Region FindRegion(LeagueFile league, Guid regionId)
+        public static Region? FindRegion(LeagueFile league, Guid regionId)
             => (league?.Structure?.Conferences ?? new List<Conference>())
                 .SelectMany(conference => conference.Regions ?? new List<Region>())
                 .FirstOrDefault(region => region.Id == regionId);
 
-        public static District FindDistrict(LeagueFile league, Guid districtId)
+        public static District? FindDistrict(LeagueFile league, Guid districtId)
             => (league?.Structure?.Conferences ?? new List<Conference>())
                 .SelectMany(conference => conference.Regions ?? new List<Region>())
                 .SelectMany(region => region.Districts ?? new List<District>())

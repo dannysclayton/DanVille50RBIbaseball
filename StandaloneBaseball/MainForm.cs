@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -21,36 +22,36 @@ namespace StandaloneBaseball
 
         private sealed class TeamItem
         {
-            public Team Team { get; set; }
-            public string Text { get; set; }
+            public Team? Team { get; set; }
+            public string? Text { get; set; }
             public override string ToString() => Text ?? Team?.DisplayName ?? "";
         }
 
         private sealed class SeasonItem
         {
-            public Season Season { get; set; }
-            public string Text { get; set; }
+            public Season? Season { get; set; }
+            public string? Text { get; set; }
             public override string ToString() => Text ?? (Season == null ? "" : Season.Year + " - " + Season.Name);
         }
 
         private sealed class ScheduledGameItem
         {
-            public ScheduledGame Game { get; set; }
-            public string Text { get; set; }
+            public ScheduledGame? Game { get; set; }
+            public string? Text { get; set; }
             public override string ToString() => Text ?? "";
         }
 
         private sealed class RankingPollItem
         {
-            public SeasonRankingPoll Poll { get; set; }
-            public string Text { get; set; }
+            public SeasonRankingPoll? Poll { get; set; }
+            public string? Text { get; set; }
             public override string ToString() => Text ?? "";
         }
 
         private sealed class RecordsBookEntityItem
         {
             public Guid? Id { get; set; }
-            public string Text { get; set; }
+            public string Text { get; set; } = "";
             public override string ToString() => Text ?? "";
         }
 
@@ -59,14 +60,14 @@ namespace StandaloneBaseball
             public Guid? TeamId { get; set; }
             public bool Auto { get; set; }
             public bool WatchOnly { get; set; }
-            public string Text { get; set; }
+            public string Text { get; set; } = "";
             public override string ToString() => Text ?? "";
         }
 
         private sealed class PvpInputAssignmentItem
         {
             public bool AwayUsesKeyboard { get; set; }
-            public string Text { get; set; }
+            public string Text { get; set; } = "";
             public override string ToString() => Text ?? "";
         }
 
@@ -75,8 +76,8 @@ namespace StandaloneBaseball
             public bool Auto { get; set; }
             public TeamUniformCategory? AutoCategory { get; set; }
             public Guid? UniformId { get; set; }
-            public TeamUniformSet Uniform { get; set; }
-            public string Text { get; set; }
+            public TeamUniformSet? Uniform { get; set; }
+            public string Text { get; set; } = "";
             public override string ToString() => Text ?? Uniform?.Name ?? "";
         }
 
@@ -115,16 +116,16 @@ namespace StandaloneBaseball
 
         private sealed class TeamPlacement
         {
-            public Conference Conference { get; set; }
-            public Region Region { get; set; }
-            public District District { get; set; }
+            public required Conference Conference { get; set; }
+            public required Region Region { get; set; }
+            public required District District { get; set; }
         }
 
         private sealed class TeamSeasonStatLine
         {
             public Guid TeamId { get; set; }
-            public string TeamName { get; set; }
-            public string SeasonName { get; set; }
+            public string TeamName { get; set; } = "";
+            public string SeasonName { get; set; } = "";
             public int SeasonNumber { get; set; }
             public bool Champion { get; set; }
             public int Games => Wins + Losses + Ties;
@@ -191,11 +192,11 @@ namespace StandaloneBaseball
         private sealed class PlayerSeasonStatLine
         {
             public Guid PlayerId { get; set; }
-            public string PlayerName { get; set; }
+            public string PlayerName { get; set; } = "";
             public bool Pitcher { get; set; }
             public PlayerClassification Classification { get; set; }
-            public string Positions { get; set; }
-            public string Injury { get; set; }
+            public string Positions { get; set; } = "";
+            public string Injury { get; set; } = "";
             public bool MedicalTag { get; set; }
             public bool MedicalEligible { get; set; }
             public bool Redshirt { get; set; }
@@ -265,16 +266,16 @@ namespace StandaloneBaseball
         {
             public Guid PlayerId { get; set; }
             public Guid TeamId { get; set; }
-            public string PlayerName { get; set; }
-            public string TeamName { get; set; }
+            public string PlayerName { get; set; } = "";
+            public string TeamName { get; set; } = "";
             public PlayerRole Role { get; set; }
             public PlayerClassification Classification { get; set; }
             public PlayerClassification InitialClassification { get; set; }
             public int HallScore { get; set; }
-            public string Recommendation { get; set; }
-            public string Reason { get; set; }
-            public PlayerSeasonStatLine Stats { get; set; }
-            public PlayerSeasonStatLine PlayoffStats { get; set; }
+            public string Recommendation { get; set; } = "";
+            public string Reason { get; set; } = "";
+            public PlayerSeasonStatLine Stats { get; set; } = new PlayerSeasonStatLine();
+            public PlayerSeasonStatLine PlayoffStats { get; set; } = new PlayerSeasonStatLine();
             public int Championships { get; set; }
             public int LeaderBonus { get; set; }
             public string LeaderBonusReason { get; set; } = "";
@@ -308,13 +309,13 @@ namespace StandaloneBaseball
         {
             public Guid PlayerId { get; set; }
             public Guid TeamId { get; set; }
-            public string PlayerName { get; set; }
-            public string TeamName { get; set; }
+            public string PlayerName { get; set; } = "";
+            public string TeamName { get; set; } = "";
             public PlayerRole Role { get; set; }
-            public string Positions { get; set; }
-            public string AllStarTeam { get; set; }
+            public string Positions { get; set; } = "";
+            public string AllStarTeam { get; set; } = "";
             public int Score { get; set; }
-            public PlayerSeasonStatLine Stats { get; set; }
+            public PlayerSeasonStatLine Stats { get; set; } = new PlayerSeasonStatLine();
         }
 
         private sealed class AllStarStatRow
@@ -350,7 +351,7 @@ namespace StandaloneBaseball
             public int Rank { get; set; }
             public bool Winner => Rank == 1;
             public string KeyStats { get; set; } = "";
-            public PlayerSeasonStatLine Stats { get; set; }
+            public PlayerSeasonStatLine Stats { get; set; } = new PlayerSeasonStatLine();
         }
 
         private enum StatsScope
@@ -381,27 +382,28 @@ namespace StandaloneBaseball
         private bool _dirty;
         private bool _suppress;
         private bool _refreshingUniformCombos;
+        private readonly LeagueAutosaveCoordinator _autosave;
 
-        private ListBox _teamList;
-        private TextBox _cityBox, _nicknameBox, _abbrBox, _coachBox;
-        private Panel _primaryPanel, _secondaryPanel, _fieldPanel;
-        private FlowLayoutPanel _teamBadgesPanel;
-        private PictureBox _playerAvatarBox;
-        private Label _playerAvatarLabel;
-        private Image _playerAvatarImage;
-        private Panel _teamHallPagePanel;
-        private PictureBox _teamHallPicture;
+        private ListBox _teamList = null!;
+        private TextBox _cityBox = null!, _nicknameBox = null!, _abbrBox = null!, _coachBox = null!;
+        private Panel _primaryPanel = null!, _secondaryPanel = null!, _fieldPanel = null!;
+        private FlowLayoutPanel _teamBadgesPanel = null!;
+        private PictureBox _playerAvatarBox = null!;
+        private Label _playerAvatarLabel = null!;
+        private Image? _playerAvatarImage;
+        private Panel _teamHallPagePanel = null!;
+        private PictureBox _teamHallPicture = null!;
         private Image? _teamHallImage;
-        private DataGridView _rosterGrid, _gamesGrid, _playoffGrid, _rankingGrid, _championshipGrid, _teamStatsGrid, _playerStatsGrid, _recordsBookGrid, _hofDynastyGrid, _hofTeamGrid, _hofCandidatesGrid, _hofCoachCandidatesGrid, _hofRecordsGrid, _allStarCandidatesGrid, _allStarSelectionsGrid, _allStarGameStatsGrid, _awardRacesGrid, _positionAwardsGrid, _goldGloveGrid, _silverBatGrid, _awardFinalistsGrid, _awardHistoryGrid, _inboxGrid;
-        private TextBox _inboxBodyBox;
-        private TreeView _structureTree;
-        private TabControl _allStarTabs, _awardTabs, _hofTabs;
-        private TrophyGalleryControl _awardTrophyGallery, _hofTrophyGallery;
-        private ComboBox _awayCombo, _homeCombo, _seasonCombo, _commitSeasonCombo, _rankingSeasonCombo, _rankingPollCombo, _allStarSeasonCombo, _allStarStatsScopeCombo, _awardSeasonCombo, _teamStatsTeamCombo, _teamStatsSeasonCombo, _teamStatsScopeCombo, _playerStatsTeamCombo, _playerStatsSeasonCombo, _playerStatsScopeCombo, _recordsBookLevelCombo, _recordsBookEntityCombo, _recordsBookScopeCombo, _hofTeamCombo, _inningsCombo, _scheduledGameCombo, _fieldPresetCombo, _controlTeamCombo, _pvpInputCombo, _awayUniformCombo, _homeUniformCombo, _inboxFilterCombo;
-        private ToolStripStatusLabel _status;
-        private Label _simResult, _championLabel, _rankingSummaryLabel, _allStarSummaryLabel, _awardSummaryLabel, _teamLeadersLabel, _playerLeadersLabel, _hofSummaryLabel, _inboxSummaryLabel;
-        private CheckBox _mercyRuleBox, _extraInningsBox, _extraRunnerBox;
-        private TabControl _tabs;
+        private DataGridView _rosterGrid = null!, _gamesGrid = null!, _playoffGrid = null!, _rankingGrid = null!, _championshipGrid = null!, _teamStatsGrid = null!, _playerStatsGrid = null!, _recordsBookGrid = null!, _hofDynastyGrid = null!, _hofTeamGrid = null!, _hofCandidatesGrid = null!, _hofCoachCandidatesGrid = null!, _hofRecordsGrid = null!, _allStarCandidatesGrid = null!, _allStarSelectionsGrid = null!, _allStarGameStatsGrid = null!, _awardRacesGrid = null!, _positionAwardsGrid = null!, _goldGloveGrid = null!, _silverBatGrid = null!, _awardFinalistsGrid = null!, _awardHistoryGrid = null!, _inboxGrid = null!;
+        private TextBox _inboxBodyBox = null!;
+        private TreeView _structureTree = null!;
+        private TabControl _allStarTabs = null!, _awardTabs = null!, _hofTabs = null!;
+        private TrophyGalleryControl _awardTrophyGallery = null!, _hofTrophyGallery = null!;
+        private ComboBox _awayCombo = null!, _homeCombo = null!, _seasonCombo = null!, _commitSeasonCombo = null!, _rankingSeasonCombo = null!, _rankingPollCombo = null!, _allStarSeasonCombo = null!, _allStarStatsScopeCombo = null!, _awardSeasonCombo = null!, _teamStatsTeamCombo = null!, _teamStatsSeasonCombo = null!, _teamStatsScopeCombo = null!, _playerStatsTeamCombo = null!, _playerStatsSeasonCombo = null!, _playerStatsScopeCombo = null!, _recordsBookLevelCombo = null!, _recordsBookEntityCombo = null!, _recordsBookScopeCombo = null!, _hofTeamCombo = null!, _inningsCombo = null!, _scheduledGameCombo = null!, _fieldPresetCombo = null!, _controlTeamCombo = null!, _pvpInputCombo = null!, _awayUniformCombo = null!, _homeUniformCombo = null!, _inboxFilterCombo = null!;
+        private ToolStripStatusLabel _status = null!;
+        private Label _simResult = null!, _championLabel = null!, _rankingSummaryLabel = null!, _allStarSummaryLabel = null!, _awardSummaryLabel = null!, _teamLeadersLabel = null!, _playerLeadersLabel = null!, _hofSummaryLabel = null!, _inboxSummaryLabel = null!;
+        private CheckBox _mercyRuleBox = null!, _extraInningsBox = null!, _extraRunnerBox = null!;
+        private TabControl _tabs = null!;
         private ToolTip _tips;
         private GameResult? _lastGame;
         private readonly MenuAction? _startupAction;
@@ -426,6 +428,10 @@ namespace StandaloneBaseball
             _league = CreateStarterLeague();
             AssetPathResolver.ClearLeagueFilePath();
             BuildUi();
+            _autosave = new LeagueAutosaveCoordinator(
+                AutosaveHighValueChanges,
+                TimeSpan.FromMilliseconds(750),
+                new WindowsFormsSynchronizationContext());
             _scoreboardPhotoTimer = new System.Windows.Forms.Timer { Interval = 2500 };
             _scoreboardPhotoTimer.Tick += (s, e) =>
             {
@@ -448,6 +454,7 @@ namespace StandaloneBaseball
                 ClearTeamBadgeImages();
                 ClearTeamHallImage();
                 SetPlayerAvatarImage(null);
+                _autosave.Dispose();
                 _scoreboardPhotoTimer?.Dispose();
                 _worldSeriesChampionsSound.Dispose();
                 _teamContextMusic.Dispose();
@@ -524,7 +531,7 @@ namespace StandaloneBaseball
             Controls.Add(strip);
 
             MainMenuStrip.BringToFront();
-            FormClosing += (s, e) => { if (!ConfirmDiscard()) e.Cancel = true; };
+            FormClosing += MainFormClosing;
         }
 
         private void BuildTeamsTab(TabPage tab)
@@ -1945,7 +1952,7 @@ namespace StandaloneBaseball
             section.Headers = columns.Select(column => column.HeaderText ?? "").ToList();
             section.Rows = grid.Rows.Cast<DataGridViewRow>()
                 .Where(row => !row.IsNewRow && row.Visible)
-                .Select(row => columns.Select(column => ExportCellText(row.Cells[column.Index].FormattedValue)).ToList())
+                .Select(row => columns.Select(column => ExportCellValue(row.Cells[column.Index].Value)).ToList())
                 .ToList();
             return section;
         }
@@ -1987,20 +1994,20 @@ namespace StandaloneBaseball
                     Rows = (poll.Rankings ?? new List<SeasonRankingEntry>())
                         .OrderBy(entry => entry.Rank)
                         .ThenBy(entry => entry.TeamName)
-                        .Select(entry => new List<string>
+                        .Select(entry => new List<object?>
                         {
-                            entry.Rank.ToString(),
-                            entry.PreviousRank <= 0 ? "NR" : entry.PreviousRank.ToString(),
+                            entry.Rank,
+                            entry.PreviousRank <= 0 ? "NR" : entry.PreviousRank,
                             entry.TeamName ?? "",
-                            entry.Wins.ToString(),
-                            entry.Losses.ToString(),
-                            entry.Ties.ToString(),
-                            entry.Score.ToString("0.00"),
-                            entry.PollScore.ToString("0.00"),
-                            entry.ComputerScore.ToString("0.00"),
-                            entry.RankedWins.ToString(),
-                            entry.StrengthOfSchedule.ToString("0.000"),
-                            entry.RunDifferential.ToString(),
+                            entry.Wins,
+                            entry.Losses,
+                            entry.Ties,
+                            entry.Score,
+                            entry.PollScore,
+                            entry.ComputerScore,
+                            entry.RankedWins,
+                            entry.StrengthOfSchedule,
+                            entry.RunDifferential,
                             entry.Notes ?? ""
                         })
                         .ToList()
@@ -2008,8 +2015,12 @@ namespace StandaloneBaseball
                 .ToList();
         }
 
-        private static string ExportCellText(object value)
-            => value is Image ? "[image]" : Convert.ToString(value) ?? "";
+        private static object? ExportCellValue(object? value)
+        {
+            if (value == null || value is DBNull)
+                return null;
+            return value is Image ? "[image]" : value;
+        }
 
         private static string BuildGridExportHtml(DataGridView grid, string title, ExportFormat format)
         {
@@ -2247,7 +2258,7 @@ namespace StandaloneBaseball
         private string CurrentHallOfFameExportTitle()
             => "Hall Of Fame " + (_hofTabs?.SelectedTab?.Text ?? "Dynasty Hall");
 
-        private static DataGridView CurrentGridFromTabs(TabControl tabs)
+        private static DataGridView? CurrentGridFromTabs(TabControl tabs)
             => tabs?.SelectedTab?.Controls.OfType<DataGridView>().FirstOrDefault();
 
         private LeagueFile CreateStarterLeague(LeagueRules? rules = null, string? name = null, string? ownerFullName = null)
@@ -2272,7 +2283,7 @@ namespace StandaloneBaseball
             PlayoffEngine.EnsureDefaultStructure(league);
             if (league.Rules?.Schedule?.HasAnyGames == true)
             {
-                season.Schedule = ScheduleGenerator.Generate(league, league.Rules.Schedule, out string error);
+                season.Schedule = ScheduleGenerator.Generate(league, league.Rules.Schedule, out string? error);
                 if (error != null)
                     season.Schedule.Clear();
             }
@@ -2413,7 +2424,7 @@ namespace StandaloneBaseball
             _inboxBodyBox.Text = body.ToString();
         }
 
-        private CoachInboxMessage SelectedInboxMessage()
+        private CoachInboxMessage? SelectedInboxMessage()
             => _inboxGrid?.CurrentRow?.Tag as CoachInboxMessage;
 
         private void MarkSelectedInboxRead()
@@ -2617,7 +2628,7 @@ namespace StandaloneBaseball
                     {
                         var teams = district.TeamIds
                             .Select(TeamById)
-                            .Where(t => t != null)
+                            .OfType<Team>()
                             .Select(t => t.ScoreboardName)
                             .ToList();
                         var districtNode = new TreeNode(district.Name + "  (" + teams.Count + " teams)")
@@ -2822,8 +2833,12 @@ namespace StandaloneBaseball
             }
         }
 
-        private SeasonRankingPoll SelectedRankingPoll()
-            => (_rankingPollCombo?.SelectedItem as RankingPollItem)?.Poll ?? RankingEngine.LatestPoll(SelectedSeason(_rankingSeasonCombo));
+        private SeasonRankingPoll? SelectedRankingPoll()
+        {
+            var selectedPoll = (_rankingPollCombo?.SelectedItem as RankingPollItem)?.Poll;
+            var season = SelectedSeason(_rankingSeasonCombo);
+            return selectedPoll ?? (season == null ? null : RankingEngine.LatestPoll(season));
+        }
 
         private void RefreshRankingGrid()
         {
@@ -2920,7 +2935,7 @@ namespace StandaloneBaseball
             RefreshGameUniformCombos();
         }
 
-        private ScheduledGame SelectedScheduledGame()
+        private ScheduledGame? SelectedScheduledGame()
             => (_scheduledGameCombo?.SelectedItem as ScheduledGameItem)?.Game;
 
         private void RefreshGameUniformCombos()
@@ -2931,6 +2946,12 @@ namespace StandaloneBaseball
             var scheduled = SelectedScheduledGame();
             var away = scheduled == null ? SelectedTeam(_awayCombo) : TeamById(scheduled.AwayTeamId);
             var home = scheduled == null ? SelectedTeam(_homeCombo) : TeamById(scheduled.HomeTeamId);
+            if (away == null || home == null)
+            {
+                _awayUniformCombo.Items.Clear();
+                _homeUniformCombo.Items.Clear();
+                return;
+            }
 
             _refreshingUniformCombos = true;
             try
@@ -3035,10 +3056,10 @@ namespace StandaloneBaseball
             return item?.Auto == true ? item.AutoCategory : null;
         }
 
-        private TeamUniformSet SelectedAwayUniform(Team away, ScheduledGame? scheduled)
+        private TeamUniformSet? SelectedAwayUniform(Team away, ScheduledGame? scheduled)
             => GameUniformResolver.ResolveUniform(away, homeRole: false, SelectedUniformChoiceId(_awayUniformCombo), scheduled, scheduled?.GameNumber ?? 1, SelectedUniformRotationSchedule(), _league?.Rules?.RotateSavedUniforms ?? true, SelectedUniformAutoCategory(_awayUniformCombo));
 
-        private TeamUniformSet SelectedHomeUniform(Team home, ScheduledGame? scheduled)
+        private TeamUniformSet? SelectedHomeUniform(Team home, ScheduledGame? scheduled)
             => GameUniformResolver.ResolveUniform(home, homeRole: true, SelectedUniformChoiceId(_homeUniformCombo), scheduled, scheduled?.GameNumber ?? 1, SelectedUniformRotationSchedule(), _league?.Rules?.RotateSavedUniforms ?? true, SelectedUniformAutoCategory(_homeUniformCombo));
 
         private IEnumerable<ScheduledGame> SelectedUniformRotationSchedule()
@@ -3065,8 +3086,11 @@ namespace StandaloneBaseball
             bool selectedAuto = selected == null || selected.Auto;
 
             _controlTeamCombo.Items.Clear();
-            var away = SelectedScheduledGame() == null ? SelectedTeam(_awayCombo) : TeamById(SelectedScheduledGame().AwayTeamId);
-            var home = SelectedScheduledGame() == null ? SelectedTeam(_homeCombo) : TeamById(SelectedScheduledGame().HomeTeamId);
+            var scheduled = SelectedScheduledGame();
+            var away = scheduled == null ? SelectedTeam(_awayCombo) : TeamById(scheduled.AwayTeamId);
+            var home = scheduled == null ? SelectedTeam(_homeCombo) : TeamById(scheduled.HomeTeamId);
+            if (away == null || home == null)
+                return;
             var controlled = DefaultControlledTeamsForGame(away, home);
             string autoText = controlled.Count switch
             {
@@ -3139,7 +3163,7 @@ namespace StandaloneBaseball
             if (_fieldPresetCombo == null)
                 return;
 
-            string selectedId = (_fieldPresetCombo.SelectedItem as BaseballFieldPreset)?.Id;
+            string? selectedId = (_fieldPresetCombo.SelectedItem as BaseballFieldPreset)?.Id;
             if (string.IsNullOrWhiteSpace(selectedId))
                 selectedId = SelectedTeam(_homeCombo)?.HomeFieldPresetId;
             if (string.IsNullOrWhiteSpace(selectedId))
@@ -3194,9 +3218,9 @@ namespace StandaloneBaseball
             }
         }
 
-        private Team SelectedTeam() => (_teamList?.SelectedItem as TeamItem)?.Team;
-        private Season SelectedSeason(ComboBox combo) => (combo?.SelectedItem as SeasonItem)?.Season;
-        private Team SelectedTeam(ComboBox combo) => (combo?.SelectedItem as TeamItem)?.Team;
+        private Team? SelectedTeam() => (_teamList?.SelectedItem as TeamItem)?.Team;
+        private Season? SelectedSeason(ComboBox combo) => (combo?.SelectedItem as SeasonItem)?.Season;
+        private Team? SelectedTeam(ComboBox combo) => (combo?.SelectedItem as TeamItem)?.Team;
 
         private static StatsScope SelectedStatsScope(ComboBox combo)
         {
@@ -3309,7 +3333,7 @@ namespace StandaloneBaseball
 
         private void RefreshSelectedPlayerAvatar()
         {
-            Player player = _rosterGrid?.CurrentRow?.Tag as Player;
+            Player? player = _rosterGrid?.CurrentRow?.Tag as Player;
             SetPlayerAvatarImage(null);
 
             if (_playerAvatarLabel == null || _playerAvatarBox == null)
@@ -3579,10 +3603,10 @@ namespace StandaloneBaseball
                 team.Coaches.Insert(0, new Coach { Id = team.CoachId, Name = team.CoachName, Role = "Head Coach", Active = true });
         }
 
-        private Coach HeadCoach(Team team)
+        private Coach? HeadCoach(Team team)
         {
             EnsureTeamCoaches(team);
-            return team?.Coaches?.FirstOrDefault(c => c.Id == team.CoachId);
+            return team.Coaches?.FirstOrDefault(c => c.Id == team.CoachId);
         }
 
         private static void SetHeadCoach(Team team, Coach coach)
@@ -3601,7 +3625,7 @@ namespace StandaloneBaseball
             team.CoachName = coach.Name;
         }
 
-        private CoachRecord BuildCoachRecord(Team team, Coach coach)
+        private CoachRecord BuildCoachRecord(Team? team, Coach? coach)
         {
             var record = new CoachRecord
             {
@@ -3719,7 +3743,7 @@ namespace StandaloneBaseball
 
         private bool TrySaveUniformOverride(DataGridViewRow row, string cellName, Action<int?> assign)
         {
-            string value = Convert.ToString(row.Cells[cellName].Value);
+            string? value = Convert.ToString(row.Cells[cellName].Value);
             if (string.IsNullOrWhiteSpace(value))
             {
                 assign(null);
@@ -3759,10 +3783,20 @@ namespace StandaloneBaseball
                 : _league.AssetLibraryPath;
         }
 
-        private string ExistingAssetLibraryPath()
+        private string? ExistingAssetLibraryPath()
         {
             string path = AssetLibraryPath();
             return Directory.Exists(path) ? path : null;
+        }
+
+        private string AssetLibraryInitialDirectory()
+        {
+            string? path = ExistingAssetLibraryPath();
+            if (!string.IsNullOrWhiteSpace(path))
+                return path;
+
+            path = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+            return Directory.Exists(path) ? path : AppContext.BaseDirectory;
         }
 
         public void ApplyMenuAction(MenuAction action)
@@ -3913,7 +3947,7 @@ namespace StandaloneBaseball
         {
             _league.Cutscenes ??= new List<CutsceneDefinition>();
             string assetDir = UserDataPaths.EnsureLeagueCutsceneDirectory();
-            using var dialog = new CutsceneEditorDialog(_league.Cutscenes, assetDir, ExistingAssetLibraryPath(), "League Cutscenes", CutsceneCatalog.LeagueTriggers);
+            using var dialog = new CutsceneEditorDialog(_league.Cutscenes, assetDir, AssetLibraryInitialDirectory(), "League Cutscenes", CutsceneCatalog.LeagueTriggers);
             if (dialog.ShowDialog(this) != DialogResult.OK)
                 return;
 
@@ -3938,11 +3972,13 @@ namespace StandaloneBaseball
             if (!EnsureLeagueSavedForAssets()) return;
 
             team.Cutscenes ??= new List<CutsceneDefinition>();
-            string assetDir = GetTeamCutsceneDir(team, true);
+            string? assetDir = GetTeamCutsceneDir(team, true);
+            if (string.IsNullOrWhiteSpace(assetDir))
+                return;
             using var dialog = new CutsceneEditorDialog(
                 team.Cutscenes,
                 assetDir,
-                ExistingAssetLibraryPath(),
+                AssetLibraryInitialDirectory(),
                 team.DisplayName + " Cutscenes",
                 CutsceneCatalog.TeamTriggers,
                 TeamCutsceneUniformFolders());
@@ -4015,7 +4051,7 @@ namespace StandaloneBaseball
 
         private void AddSchoolTeamFromCsv()
         {
-            string csvPath = ChooseSchoolsCsvPath();
+            string? csvPath = ChooseSchoolsCsvPath();
             if (string.IsNullOrWhiteSpace(csvPath)) return;
 
             List<SchoolTeamRecord> schools;
@@ -4045,7 +4081,7 @@ namespace StandaloneBaseball
                 Nickname = string.IsNullOrWhiteSpace(school.Mascot)
                     ? "Team"
                     : school.Mascot.Trim(),
-                CatalogSchoolName = school.Name,
+                CatalogSchoolName = school.Name ?? "",
                 CatalogMascot = school.Mascot,
                 ScoreboardAbbreviation = BuildScoreboardAbbreviation(school)
             };
@@ -4108,7 +4144,10 @@ namespace StandaloneBaseball
             try
             {
                 team.EnsureDefaultUniformSets();
-                string dir = Path.Combine(GetTeamUniformDir(team, true), TeamUniformSet.CategoryLabel(category).ToUpperInvariant(), Guid.NewGuid().ToString("N"));
+                string? uniformDir = GetTeamUniformDir(team, true);
+                if (string.IsNullOrWhiteSpace(uniformDir))
+                    return false;
+                string dir = Path.Combine(uniformDir, TeamUniformSet.CategoryLabel(category).ToUpperInvariant(), Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(dir);
                 string ext = Path.GetExtension(sourcePath);
                 if (string.IsNullOrWhiteSpace(ext))
@@ -4136,7 +4175,7 @@ namespace StandaloneBaseball
             }
         }
 
-        private string ChooseSchoolsCsvPath()
+        private string? ChooseSchoolsCsvPath()
         {
             string savedCsvPath = SchoolTeamCsvCatalog.PreferredSchoolsCsvPath;
             if (File.Exists(savedCsvPath))
@@ -4154,7 +4193,7 @@ namespace StandaloneBaseball
 
         private void UpdateSchoolsCsv()
         {
-            string savedPath = UpdateSchoolsCsvFromPicker();
+            string? savedPath = UpdateSchoolsCsvFromPicker();
             if (!string.IsNullOrWhiteSpace(savedPath))
                 _status.Text = "Updated schools CSV source: " + savedPath;
         }
@@ -4192,7 +4231,7 @@ namespace StandaloneBaseball
         }
 #endif
 
-        private string UpdateSchoolsCsvFromPicker()
+        private string? UpdateSchoolsCsvFromPicker()
         {
             using var dlg = new OpenFileDialog
             {
@@ -4244,7 +4283,7 @@ namespace StandaloneBaseball
             var team = SelectedTeam();
             if (team == null) return;
             if (MessageBox.Show(this, "Remove " + team.DisplayName + "?", "Remove team", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK) return;
-            string photoDir = GetTeamPhotoDir(team, false);
+            string? photoDir = GetTeamPhotoDir(team, false);
             _league.Teams.Remove(team);
             foreach (var season in _league.Seasons)
                 season.Games.RemoveAll(g => g.AwayTeamId == team.Id || g.HomeTeamId == team.Id);
@@ -4261,7 +4300,7 @@ namespace StandaloneBaseball
             Simulator.FillRandomRoster(team, _rng);
             EnsureTeamBaseLineup(team, recalculate: true);
             SaveTeamBaseLineupFile(team);
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.RosterChanged);
             LoadSelectedTeam();
         }
 
@@ -4279,7 +4318,7 @@ namespace StandaloneBaseball
 
         private bool TryImportRosterFromAssetLibrary(Team team, bool showMessages, bool confirmReplace)
         {
-            string rosterPath = FindLibraryRosterFile(team);
+            string? rosterPath = FindLibraryRosterFile(team);
             if (string.IsNullOrWhiteSpace(rosterPath))
             {
                 if (showMessages)
@@ -4313,7 +4352,7 @@ namespace StandaloneBaseball
                 team.InjuredReserve = new List<Player>();
                 EnsureTeamBaseLineup(team, recalculate: true);
                 SaveTeamBaseLineupFile(team);
-                MarkDirty();
+                MarkDirty(LeagueAutosaveReason.RosterChanged);
                 LoadSelectedTeam();
                 _status.Text = result.Message;
                 if (showMessages)
@@ -4706,7 +4745,7 @@ namespace StandaloneBaseball
             public PlayerChoice(Player player) { Player = player; }
             public Player Player { get; }
             public override string ToString() => Player == null ? "" : Player.Name + " (" + Player.Positions + ")";
-            public override bool Equals(object obj) => obj is PlayerChoice other && other.Player?.Id == Player?.Id;
+            public override bool Equals(object? obj) => obj is PlayerChoice other && other.Player?.Id == Player?.Id;
             public override int GetHashCode() => Player?.Id.GetHashCode() ?? 0;
         }
 
@@ -4720,13 +4759,13 @@ namespace StandaloneBaseball
         private static string TryBuildEditedBaseLineup(Team team, DataGridView grid, ComboBox pitcherCombo, out TeamBaseLineup lineup)
         {
             lineup = new TeamBaseLineup { LastCalculatedAt = DateTime.Now, Status = "User edited base lineup" };
-            Player startingPitcher = (pitcherCombo.SelectedItem as PlayerChoice)?.Player;
+            Player? startingPitcher = (pitcherCombo.SelectedItem as PlayerChoice)?.Player;
             var usedBatters = new HashSet<Guid>();
             bool hasDh = false;
 
             foreach (DataGridViewRow row in grid.Rows)
             {
-                Player player = (row.Cells["player"].Value as PlayerChoice)?.Player;
+                Player? player = (row.Cells["player"].Value as PlayerChoice)?.Player;
                 string position = Convert.ToString(row.Cells["position"].Value) ?? "";
                 bool dh = Convert.ToBoolean(row.Cells["dh"].Value ?? false) || position.Equals("DH", StringComparison.OrdinalIgnoreCase);
                 if (player == null)
@@ -4765,7 +4804,7 @@ namespace StandaloneBaseball
             {
                 if (!lineup.DefensiveAssignments.TryGetValue(position, out Guid playerId))
                     return "Missing defensive position: " + position + ".";
-                Player assigned = team.Roster.FirstOrDefault(p => p.Id == playerId);
+                Player? assigned = team.Roster.FirstOrDefault(p => p.Id == playerId);
                 if (assigned == null || !LineupEngine.CanAssignPosition(assigned, position) || assigned.RedshirtActive || !InjuryEngine.IsAvailable(assigned))
                     return "Invalid defensive assignment at " + position + ".";
             }
@@ -4838,7 +4877,7 @@ namespace StandaloneBaseball
                 if (grid.CurrentRow?.Tag is not Player player)
                     return;
                 team.JvPool.Remove(player);
-                MarkDirty();
+                MarkDirty(LeagueAutosaveReason.RosterChanged);
                 refresh();
             });
             AddButton(buttons, "Promote", (s, e) =>
@@ -4855,7 +4894,7 @@ namespace StandaloneBaseball
                 team.Roster.Add(player);
                 EnsureTeamBaseLineup(team, recalculate: true);
                 SaveTeamBaseLineupFile(team);
-                MarkDirty();
+                MarkDirty(LeagueAutosaveReason.RosterChanged);
                 refresh();
                 LoadSelectedTeam();
             });
@@ -4872,7 +4911,7 @@ namespace StandaloneBaseball
                 _league,
                 ImportCustomFieldAsset,
                 GetTeamLogoChoices,
-                ExistingAssetLibraryPath());
+                AssetLibraryInitialDirectory());
             form.ShowDialog(this);
             if (!form.Modified)
                 return;
@@ -4887,7 +4926,7 @@ namespace StandaloneBaseball
         private List<FieldEditorDialog.TeamLogoChoice> GetTeamLogoChoices()
         {
             return (_league?.Teams ?? new List<Team>())
-                .Select(team => new FieldEditorDialog.TeamLogoChoice { Team = team, LogoPath = GetTeamLogoPath(team) })
+                .Select(team => new FieldEditorDialog.TeamLogoChoice { Team = team, LogoPath = GetTeamLogoPath(team) ?? "" })
                 .Where(choice => !string.IsNullOrWhiteSpace(choice.LogoPath) && File.Exists(choice.LogoPath))
                 .OrderBy(choice => choice.Team.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -4984,9 +5023,9 @@ namespace StandaloneBaseball
             form.ShowDialog(this);
         }
 
-        private string FindLibraryRosterFile(Team team)
+        private string? FindLibraryRosterFile(Team team)
         {
-            string teamDir = FindAssetLibraryTeamDir(team);
+            string? teamDir = FindAssetLibraryTeamDir(team);
             if (string.IsNullOrWhiteSpace(teamDir) || !Directory.Exists(teamDir))
                 return null;
 
@@ -5006,9 +5045,9 @@ namespace StandaloneBaseball
             return files.FirstOrDefault()?.Path;
         }
 
-        private string FindAssetLibraryTeamDir(Team team)
+        private string? FindAssetLibraryTeamDir(Team team)
         {
-            string root = ExistingAssetLibraryPath();
+            string? root = ExistingAssetLibraryPath();
             if (team == null || string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                 return null;
 
@@ -5062,13 +5101,15 @@ namespace StandaloneBaseball
             if (team == null) return;
             if (!EnsureLeagueSavedForAssets()) return;
 
-            string dir = GetTeamLogoDir(team, true);
+            string? dir = GetTeamLogoDir(team, true);
+            if (string.IsNullOrWhiteSpace(dir))
+                return;
             using var dlg = new OpenFileDialog
             {
                 Title = "Choose logo for " + team.DisplayName,
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files (*.*)|*.*",
                 Multiselect = false,
-                InitialDirectory = ExistingAssetLibraryPath()
+                InitialDirectory = AssetLibraryInitialDirectory()
             };
 
             if (dlg.ShowDialog(this) == DialogResult.OK)
@@ -5106,7 +5147,10 @@ namespace StandaloneBaseball
             if (!EnsureLeagueSavedForAssets()) return;
 
             team.EnsureDefaultUniformSets();
-            using var dlg = new TeamUniformEditorDialog(team, GetTeamUniformDir(team, true), ExistingAssetLibraryPath());
+            string? uniformDir = GetTeamUniformDir(team, true);
+            if (string.IsNullOrWhiteSpace(uniformDir))
+                return;
+            using var dlg = new TeamUniformEditorDialog(team, uniformDir, AssetLibraryInitialDirectory());
             if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
@@ -5161,7 +5205,9 @@ namespace StandaloneBaseball
 
             try
             {
-                string dir = GetTeamLogoDir(team, true);
+                string? dir = GetTeamLogoDir(team, true);
+                if (string.IsNullOrWhiteSpace(dir))
+                    return false;
                 foreach (string existing in Directory.GetFiles(dir).Where(IsImageFile))
                     File.Delete(existing);
 
@@ -5243,13 +5289,15 @@ namespace StandaloneBaseball
             if (team == null) return;
             if (!EnsureLeagueSavedForAssets()) return;
 
-            string dir = GetTeamPhotoDir(team, true);
+            string? dir = GetTeamPhotoDir(team, true);
+            if (string.IsNullOrWhiteSpace(dir))
+                return;
             using var dlg = new OpenFileDialog
             {
                 Title = "Add scoreboard photos for " + team.DisplayName,
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files (*.*)|*.*",
                 Multiselect = true,
-                InitialDirectory = ExistingAssetLibraryPath()
+                InitialDirectory = AssetLibraryInitialDirectory()
             };
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
@@ -5281,7 +5329,9 @@ namespace StandaloneBaseball
             if (team == null) return;
             if (!EnsureLeagueSavedForAssets()) return;
 
-            string playlistDir = GetTeamMusicDir(team, true);
+            string? playlistDir = GetTeamMusicDir(team, true);
+            if (string.IsNullOrWhiteSpace(playlistDir))
+                return;
             var selectedTracks = (team.TeamMusicPlaylist ?? new List<string>())
                 .Select(AssetPathResolver.ResolveExistingFile)
                 .Where(path => !string.IsNullOrWhiteSpace(path))
@@ -5290,7 +5340,7 @@ namespace StandaloneBaseball
                 team.DisplayName,
                 playlistDir,
                 selectedTracks,
-                ExistingAssetLibraryPath());
+                AssetLibraryInitialDirectory());
             if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
@@ -5326,13 +5376,15 @@ namespace StandaloneBaseball
             if (team == null) return;
             if (!EnsureLeagueSavedForAssets()) return;
 
-            string dir = GetTeamNationalAnthemDir(team, true);
+            string? dir = GetTeamNationalAnthemDir(team, true);
+            if (string.IsNullOrWhiteSpace(dir))
+                return;
             using var dlg = new OpenFileDialog
             {
                 Title = "Add national anthem images for " + team.DisplayName,
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files (*.*)|*.*",
                 Multiselect = true,
-                InitialDirectory = ExistingAssetLibraryPath()
+                InitialDirectory = AssetLibraryInitialDirectory()
             };
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
@@ -5365,9 +5417,11 @@ namespace StandaloneBaseball
             if (!EnsureLeagueSavedForAssets()) return;
 
             Player? player = _rosterGrid.CurrentRow?.Tag as Player;
-            string dir = GetTeamSpriteDir(team, true);
+            string? dir = GetTeamSpriteDir(team, true);
+            if (string.IsNullOrWhiteSpace(dir))
+                return;
             // The dialog uses a missing player as its team-only target mode.
-            using var dlg = new SpriteCreatorDialog(team, player!, dir, ExistingAssetLibraryPath());
+            using var dlg = new SpriteCreatorDialog(team, player, dir, AssetLibraryInitialDirectory());
             if (dlg.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dlg.SavedSpriteSheetPath))
                 return;
 
@@ -5413,12 +5467,14 @@ namespace StandaloneBaseball
                 Title = "Choose avatar photo for " + player.Name,
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files (*.*)|*.*",
                 Multiselect = false,
-                InitialDirectory = ExistingAssetLibraryPath()
+                InitialDirectory = AssetLibraryInitialDirectory()
             };
             if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
-            string dir = GetPlayerAvatarDir(team, player, true);
+            string? dir = GetPlayerAvatarDir(team, player, true);
+            if (string.IsNullOrWhiteSpace(dir))
+                return;
             foreach (string existing in Directory.GetFiles(dir).Where(IsImageFile))
                 File.Delete(existing);
 
@@ -5456,7 +5512,7 @@ namespace StandaloneBaseball
                 : UserDataPaths.TeamMusicPlaylistDirectory;
         }
 
-        private string GetTeamPhotoDir(Team team, bool create)
+        private string? GetTeamPhotoDir(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null) return null;
             string dir = Path.Combine(GetTeamAssetDir(team, create), "photos");
@@ -5464,7 +5520,7 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetTeamLogoDir(Team team, bool create)
+        private string? GetTeamLogoDir(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null) return null;
             string dir = Path.Combine(GetTeamAssetDir(team, create), "logo");
@@ -5472,7 +5528,7 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetTeamSpriteDir(Team team, bool create)
+        private string? GetTeamSpriteDir(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null) return null;
             string dir = Path.Combine(GetTeamAssetDir(team, create), "sprites");
@@ -5480,7 +5536,7 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetTeamUniformDir(Team team, bool create)
+        private string? GetTeamUniformDir(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null) return null;
             string dir = Path.Combine(GetTeamAssetDir(team, create), "uniforms");
@@ -5488,7 +5544,7 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetPlayerAvatarDir(Team team, Player player, bool create)
+        private string? GetPlayerAvatarDir(Team? team, Player? player, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null || player == null) return null;
             string playerFolder = SanitizeFileName(player.Name) + "_" + player.Id.ToString("N").Substring(0, 8);
@@ -5506,13 +5562,13 @@ namespace StandaloneBaseball
                 return storedAvatar;
 
             var team = SelectedTeam();
-            string dir = GetPlayerAvatarDir(team, player, create: false);
+            string? dir = GetPlayerAvatarDir(team, player, create: false);
             if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
                 return "";
             return Directory.GetFiles(dir).Where(IsImageFile).OrderBy(path => path).FirstOrDefault() ?? "";
         }
 
-        private string GetTeamMusicDir(Team team, bool create)
+        private string? GetTeamMusicDir(Team? team, bool create)
         {
             if (team == null) return null;
             string dir = string.IsNullOrEmpty(_path)
@@ -5522,7 +5578,7 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetTeamNationalAnthemDir(Team team, bool create)
+        private string? GetTeamNationalAnthemDir(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null) return null;
             string dir = Path.Combine(GetTeamAssetDir(team, create), "National Anthem");
@@ -5530,7 +5586,7 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetTeamCutsceneDir(Team team, bool create)
+        private string? GetTeamCutsceneDir(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null) return null;
             string dir = Path.Combine(GetTeamAssetDir(team, create), "cutscenes");
@@ -5564,7 +5620,7 @@ namespace StandaloneBaseball
             };
         }
 
-        private string GetTeamBadgeDir(Team team, bool create)
+        private string? GetTeamBadgeDir(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null) return null;
             string dir = Path.Combine(GetTeamAssetDir(team, create), "badges");
@@ -5572,9 +5628,9 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetTeamBadgeTemplateDir(Team team, bool create)
+        private string? GetTeamBadgeTemplateDir(Team? team, bool create)
         {
-            string badgeDir = GetTeamBadgeDir(team, create);
+            string? badgeDir = GetTeamBadgeDir(team, create);
             if (string.IsNullOrEmpty(badgeDir)) return null;
             string dir = Path.Combine(badgeDir, "templates");
             if (create) Directory.CreateDirectory(dir);
@@ -5589,7 +5645,7 @@ namespace StandaloneBaseball
             return dir;
         }
 
-        private string GetTeamBaseLineupPath(Team team, bool create)
+        private string? GetTeamBaseLineupPath(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null)
                 return null;
@@ -5597,7 +5653,7 @@ namespace StandaloneBaseball
             return string.IsNullOrWhiteSpace(dir) ? null : Path.Combine(dir, "base_lineup.json");
         }
 
-        private string GetTeamPitchingPlanPath(Team team, bool create)
+        private string? GetTeamPitchingPlanPath(Team? team, bool create)
         {
             if (string.IsNullOrEmpty(_path) || team == null)
                 return null;
@@ -5647,7 +5703,7 @@ namespace StandaloneBaseball
 
         private void SaveTeamBaseLineupFile(Team team)
         {
-            string path = GetTeamBaseLineupPath(team, create: true);
+            string? path = GetTeamBaseLineupPath(team, create: true);
             if (string.IsNullOrWhiteSpace(path))
                 return;
 
@@ -5657,7 +5713,7 @@ namespace StandaloneBaseball
 
         private void SaveTeamPitchingPlanFile(Team team)
         {
-            string path = GetTeamPitchingPlanPath(team, create: true);
+            string? path = GetTeamPitchingPlanPath(team, create: true);
             if (string.IsNullOrWhiteSpace(path))
                 return;
 
@@ -5687,7 +5743,7 @@ namespace StandaloneBaseball
         {
             foreach (var team in _league?.Teams ?? Enumerable.Empty<Team>())
             {
-                string path = GetTeamBaseLineupPath(team, create: false);
+                string? path = GetTeamBaseLineupPath(team, create: false);
                 if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
                 {
                     try
@@ -5707,7 +5763,7 @@ namespace StandaloneBaseball
         {
             foreach (var team in _league?.Teams ?? Enumerable.Empty<Team>())
             {
-                string path = GetTeamPitchingPlanPath(team, create: false);
+                string? path = GetTeamPitchingPlanPath(team, create: false);
                 if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
                 {
                     try
@@ -5773,7 +5829,7 @@ namespace StandaloneBaseball
             if (team == null || string.IsNullOrWhiteSpace(source) || !IsAudioFile(source))
                 return "";
 
-            string dir = GetTeamMusicDir(team, true);
+            string? dir = GetTeamMusicDir(team, true);
             if (string.IsNullOrWhiteSpace(dir))
                 return AssetPathResolver.ToPortablePath(source);
 
@@ -5828,12 +5884,12 @@ namespace StandaloneBaseball
             return value;
         }
 
-        private static void TryDeleteDirectory(string dir)
+        private static void TryDeleteDirectory(string? dir)
         {
             try
             {
                 if (string.IsNullOrEmpty(dir)) return;
-                string parent = Directory.GetParent(dir)?.FullName;
+                string? parent = Directory.GetParent(dir)?.FullName;
                 if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
                     Directory.Delete(parent, true);
             }
@@ -5842,7 +5898,7 @@ namespace StandaloneBaseball
 
         private List<string> GetTeamPhotoPaths(Team team)
         {
-            string dir = GetTeamPhotoDir(team, false);
+            string? dir = GetTeamPhotoDir(team, false);
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return new List<string>();
             return Directory.GetFiles(dir)
                 .Where(IsImageFile)
@@ -5852,7 +5908,7 @@ namespace StandaloneBaseball
 
         private List<string> GetTeamNationalAnthemPaths(Team team)
         {
-            string dir = GetTeamNationalAnthemDir(team, false);
+            string? dir = GetTeamNationalAnthemDir(team, false);
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return new List<string>();
             return Directory.GetFiles(dir)
                 .Where(IsImageFile)
@@ -5862,7 +5918,7 @@ namespace StandaloneBaseball
 
         private List<string> GetTeamBadgePaths(Team team)
         {
-            string dir = GetTeamBadgeDir(team, false);
+            string? dir = GetTeamBadgeDir(team, false);
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return new List<string>();
             return Directory.GetFiles(dir, "*.png")
                 .Where(path => !path.Contains(Path.DirectorySeparatorChar + "templates" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
@@ -5875,7 +5931,7 @@ namespace StandaloneBaseball
         {
             if (team == null)
                 return null;
-            string dir = GetTeamLogoDir(team, false);
+            string? dir = GetTeamLogoDir(team, false);
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
             return Directory.GetFiles(dir)
                 .Where(IsImageFile)
@@ -5925,7 +5981,7 @@ namespace StandaloneBaseball
                     _tips.SetToolTip(box, Path.GetFileNameWithoutExtension(path).Replace('_', ' '));
                     box.DoubleClick += (s, e) =>
                     {
-                        string selectedPath = Convert.ToString((s as PictureBox)?.Tag);
+                        string? selectedPath = Convert.ToString((s as PictureBox)?.Tag);
                         if (!string.IsNullOrWhiteSpace(selectedPath) && File.Exists(selectedPath))
                             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = selectedPath, UseShellExecute = true });
                     };
@@ -6053,7 +6109,7 @@ namespace StandaloneBaseball
             return bitmap;
         }
 
-        private void RefreshTeamHallOfFamePage(Team team)
+        private void RefreshTeamHallOfFamePage(Team? team)
         {
             if (_teamHallPicture == null)
                 return;
@@ -6238,7 +6294,7 @@ namespace StandaloneBaseball
             using var ring = new Pen(secondary, 7);
             g.DrawEllipse(ring, bounds);
 
-            string logoPath = GetTeamLogoPath(team);
+            string? logoPath = GetTeamLogoPath(team);
             if (!string.IsNullOrWhiteSpace(logoPath) && File.Exists(logoPath))
             {
                 try
@@ -6453,7 +6509,7 @@ namespace StandaloneBaseball
             if (season == null || series == null || !series.WinnerTeamId.HasValue || string.IsNullOrEmpty(_path))
                 return;
 
-            Team team = TeamById(series.WinnerTeamId.Value);
+            Team? team = TeamById(series.WinnerTeamId.Value);
             if (team == null)
                 return;
 
@@ -6461,8 +6517,8 @@ namespace StandaloneBaseball
             string seriesName = string.IsNullOrWhiteSpace(series.RoundName) ? "Series" : series.RoundName;
             try
             {
-                string badgeDir = GetTeamBadgeDir(team, true);
-                string templateDir = GetTeamBadgeTemplateDir(team, true);
+                string? badgeDir = GetTeamBadgeDir(team, true);
+                string? templateDir = GetTeamBadgeTemplateDir(team, true);
                 if (string.IsNullOrWhiteSpace(badgeDir) || string.IsNullOrWhiteSpace(templateDir))
                     return;
 
@@ -6547,7 +6603,7 @@ namespace StandaloneBaseball
             using var ring = new Pen(secondary, 12);
             g.DrawEllipse(ring, bounds);
 
-            string logoPath = GetTeamLogoPath(team);
+            string? logoPath = GetTeamLogoPath(team);
             if (!string.IsNullOrWhiteSpace(logoPath) && File.Exists(logoPath))
             {
                 try
@@ -6632,7 +6688,7 @@ namespace StandaloneBaseball
             g.Clear(Color.FromArgb(24, 28, 36));
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            string logoPath = GetTeamLogoPath(team);
+            string? logoPath = GetTeamLogoPath(team);
             if (!string.IsNullOrWhiteSpace(logoPath) && File.Exists(logoPath))
             {
                 try
@@ -6679,7 +6735,7 @@ namespace StandaloneBaseball
             team.Roster.Add(Simulator.RandomPlayer(_rng, PlayerRole.Batter, "New Player"));
             EnsureTeamBaseLineup(team, recalculate: true);
             SaveTeamBaseLineupFile(team);
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.RosterChanged);
             LoadSelectedTeam();
         }
 
@@ -6690,7 +6746,7 @@ namespace StandaloneBaseball
             team.Roster.Remove(p);
             EnsureTeamBaseLineup(team, recalculate: true);
             SaveTeamBaseLineupFile(team);
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.RosterChanged);
             LoadSelectedTeam();
         }
 
@@ -6777,10 +6833,12 @@ namespace StandaloneBaseball
             if (lineupEligibilityChanged)
             {
                 var team = SelectedTeam();
+                if (team == null)
+                    return;
                 EnsureTeamBaseLineup(team, recalculate: true);
                 SaveTeamBaseLineupFile(team);
             }
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.RosterChanged);
         }
 
         private static void SavePitchProfileCells(Player player, DataGridViewRow row)
@@ -6933,7 +6991,7 @@ namespace StandaloneBaseball
             var season = new Season { Year = year, Name = year + " Season" };
             GenerateSchedule(season, showErrors: false);
             _league.Seasons.Add(season);
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.ScheduleGenerated);
             RefreshSeasonCombos();
             RefreshSeasonViews();
             RefreshScheduleCombo();
@@ -6960,7 +7018,7 @@ namespace StandaloneBaseball
             if (!GenerateSchedule(season, showErrors: true))
                 return;
 
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.ScheduleGenerated);
             RefreshSeasonViews();
             RefreshScheduleCombo();
         }
@@ -6969,7 +7027,7 @@ namespace StandaloneBaseball
         {
             _league.Rules ??= new LeagueRules();
             _league.Rules.Schedule ??= new SeasonScheduleRules();
-            season.Schedule = ScheduleGenerator.Generate(_league, _league.Rules.Schedule, out string error);
+            season.Schedule = ScheduleGenerator.Generate(_league, _league.Rules.Schedule, out string? error);
             if (error != null)
             {
                 season.Schedule.Clear();
@@ -7030,6 +7088,8 @@ namespace StandaloneBaseball
                 MessageBox.Show(this, "Pick two different teams.");
                 return;
             }
+            Team selectedAway = away;
+            Team selectedHome = home;
             var season = SelectedSeason(_commitSeasonCombo);
             EnsureScoutingMessagesForSeries(season, scheduled);
             var mutationSnapshot = TeamMutationSnapshot.Capture(_league, away, home);
@@ -7056,7 +7116,7 @@ namespace StandaloneBaseball
             {
                 bool saved = CommitGameResult(season, scheduled, result);
                 _status.Text = saved
-                    ? "Committed and autosaved simulation: " + ScoreboardLine(away!, result.AwayScore, home!, result.HomeScore)
+                    ? "Committed and autosaved simulation: " + ScoreboardLine(selectedAway, result.AwayScore, selectedHome, result.HomeScore)
                     : "Simulation committed in memory, but autosave was canceled or failed. Use File > Save.";
             }
             else
@@ -7158,7 +7218,9 @@ namespace StandaloneBaseball
                 }
             }
 
-            AppendInjuryMissedGameLines(result, TeamById(result.AwayTeamId), TeamById(result.HomeTeamId));
+            var awayTeam = TeamById(result.AwayTeamId);
+            var homeTeam = TeamById(result.HomeTeamId);
+            AppendInjuryMissedGameLines(result, awayTeam, homeTeam);
 
             if (scheduled != null)
             {
@@ -7170,8 +7232,10 @@ namespace StandaloneBaseball
                 scheduled.PlayedGameId = result.Id;
             }
             season.Games.Add(result);
-            PitchingRotationEngine.UpdateSeasonPitcherUsage(season, TeamById(result.AwayTeamId), result);
-            PitchingRotationEngine.UpdateSeasonPitcherUsage(season, TeamById(result.HomeTeamId), result);
+            if (awayTeam != null)
+                PitchingRotationEngine.UpdateSeasonPitcherUsage(season, awayTeam, result);
+            if (homeTeam != null)
+                PitchingRotationEngine.UpdateSeasonPitcherUsage(season, homeTeam, result);
             Team? newChampion = null;
             PlayoffSeries? championshipSeries = null;
             if (ApplyCommittedResultToPlayoffSeries(season, result, out var champion, out var series))
@@ -7216,13 +7280,13 @@ namespace StandaloneBaseball
             result.HomeUniformName = homeUniform?.Name ?? "";
         }
 
-        private static void AppendInjuryMissedGameLines(GameResult result, params Team[] teams)
+        private static void AppendInjuryMissedGameLines(GameResult result, params Team?[] teams)
         {
             if (result == null)
                 return;
             result.Lines ??= new List<PlayerGameLine>();
             var appeared = result.Lines.Select(line => line.PlayerId).ToHashSet();
-            foreach (Team team in teams.Where(team => team != null))
+            foreach (Team team in teams.OfType<Team>())
             {
                 var irIds = (team.InjuredReserve ?? new List<Player>()).Select(player => player.Id).ToHashSet();
                 foreach (Player player in (team.Roster ?? Enumerable.Empty<Player>())
@@ -7408,7 +7472,7 @@ namespace StandaloneBaseball
             }
         }
 
-        private Player ExpectedStarter(Team team)
+        private Player? ExpectedStarter(Team? team)
         {
             if (team == null)
                 return null;
@@ -7433,7 +7497,7 @@ namespace StandaloneBaseball
                 .FirstOrDefault();
         }
 
-        private string PitcherScoutText(Player pitcher, Team team)
+        private string PitcherScoutText(Player? pitcher, Team team)
         {
             if (pitcher == null)
                 return "No eligible starter found";
@@ -7510,7 +7574,7 @@ namespace StandaloneBaseball
             }
         }
 
-        private Player CatcherForTeam(Team team)
+        private Player? CatcherForTeam(Team? team)
         {
             var roster = team?.Roster ?? new List<Player>();
             if (team?.BaseLineup?.DefensiveAssignments != null &&
@@ -7549,7 +7613,7 @@ namespace StandaloneBaseball
             Team recipientTeam,
             Guid coachId,
             string context,
-            PlayerGameLine playerOfGame,
+            PlayerGameLine? playerOfGame,
             bool important)
         {
             var coach = recipientTeam.Coaches?.FirstOrDefault(c => c.Id == coachId)
@@ -7619,7 +7683,7 @@ namespace StandaloneBaseball
             };
         }
 
-        private static PlayerGameLine PlayerOfGame(GameResult result)
+        private static PlayerGameLine? PlayerOfGame(GameResult? result)
         {
             if (result?.Lines == null || result.Lines.Count == 0)
                 return null;
@@ -7663,7 +7727,7 @@ namespace StandaloneBaseball
             return score;
         }
 
-        private string PlayerOfGameText(PlayerGameLine line)
+        private string PlayerOfGameText(PlayerGameLine? line)
         {
             if (line == null)
                 return "No player stat line was available for this game.";
@@ -7936,30 +8000,37 @@ namespace StandaloneBaseball
         private string PlayerVsPlayerInputLabel(Team away, Team home)
         {
             bool awayUsesKeyboard = SelectedPvpAwayUsesKeyboard();
-            string keyboard = awayUsesKeyboard ? away?.ScoreboardName : home?.ScoreboardName;
-            string controller = awayUsesKeyboard ? home?.ScoreboardName : away?.ScoreboardName;
+            string? keyboard = awayUsesKeyboard ? away?.ScoreboardName : home?.ScoreboardName;
+            string? controller = awayUsesKeyboard ? home?.ScoreboardName : away?.ScoreboardName;
             return "Player vs Player - Keyboard: " + (keyboard ?? "Team") + ", Controller: " + (controller ?? "Team");
         }
 
         private void ResumeSavedGame()
         {
             var save = SelectedInProgressGameSave();
-            if (save?.State == null)
+            if (save == null)
             {
                 MessageBox.Show(this, "No saved in-progress game is available for the selected scheduled game or matchup.", "Resume Saved Game", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var away = TeamById(save.AwayTeamId) ?? save.State.AwayTeam;
-            var home = TeamById(save.HomeTeamId) ?? save.State.HomeTeam;
+            GameplayState? state = save.State;
+            if (state == null)
+            {
+                MessageBox.Show(this, "The saved in-progress game is missing gameplay state and cannot be resumed.", "Resume Saved Game", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var away = TeamById(save.AwayTeamId) ?? state.AwayTeam;
+            var home = TeamById(save.HomeTeamId) ?? state.HomeTeam;
             if (away == null || home == null)
             {
                 MessageBox.Show(this, "The saved game's teams could not be found.", "Resume Saved Game", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            save.State.AwayTeam = away;
-            save.State.HomeTeam = home;
+            state.AwayTeam = away;
+            state.HomeTeam = home;
 
             var season = save.SeasonId.HasValue
                 ? _league.Seasons.FirstOrDefault(s => s.Id == save.SeasonId.Value)
@@ -7970,10 +8041,10 @@ namespace StandaloneBaseball
             using var game = new GameplayForm(away, home, RankingModifierForGame(season, away, home));
             game.SetCutscenes(_league.Cutscenes, away.Cutscenes, home.Cutscenes);
             game.SetNationalAnthemCutsceneDefault(_league.NationalAnthemCutsceneDefault);
-            game.SetFieldPreset(BaseballFieldPresets.Find(save.State.FieldPresetId));
+            game.SetFieldPreset(BaseballFieldPresets.Find(state.FieldPresetId));
             game.SetNationalAnthemImages(GetTeamNationalAnthemPaths(away), GetTeamNationalAnthemPaths(home));
             game.SetPregameLineupLogos(GetTeamLogoPath(away) ?? "", GetTeamLogoPath(home) ?? "");
-            game.ApplyGameplayState(save.State);
+            game.ApplyGameplayState(state);
             game.SaveRequested += liveState => SaveInProgressGame(liveState, season, scheduled, save.Id);
             game.SetModeLabel("Resumed saved game - " + away.ScoreboardName + " at " + home.ScoreboardName);
             LoadScoreboardPhotos(away, home);
@@ -7982,7 +8053,7 @@ namespace StandaloneBaseball
             HandlePlayableGameResult(game.FinalResult, away, home, scheduled, mutationSnapshot);
         }
 
-        private InProgressGameSave SelectedInProgressGameSave()
+        private InProgressGameSave? SelectedInProgressGameSave()
         {
             _league.InProgressGames ??= new List<InProgressGameSave>();
             var scheduled = SelectedScheduledGame();
@@ -8098,10 +8169,10 @@ namespace StandaloneBaseball
             }
 
             var season = SelectedSeason(_commitSeasonCombo) ?? SelectedSeason(_seasonCombo);
-            Team winner = result.AwayScore == result.HomeScore
+            Team? winner = result.AwayScore == result.HomeScore
                 ? null
                 : result.AwayScore > result.HomeScore ? away : home;
-            string winnerRecord = winner == null ? "" : ProjectedTeamRecordText(season, winner.Id, result);
+            string winnerRecord = winner == null || season == null ? "" : ProjectedTeamRecordText(season, winner.Id, result);
             bool canCommit = season != null && (scheduled == null || !scheduled.PlayedGameId.HasValue);
             string commitText = canCommit
                 ? (scheduled == null ? "Commit to Season" : "Commit to Scheduled Game")
@@ -8177,7 +8248,7 @@ namespace StandaloneBaseball
 
             if (Guid.TryParse(replayTeam.TeamId, out Guid teamId))
             {
-                Team byId = TeamById(teamId);
+                Team? byId = TeamById(teamId);
                 if (byId != null)
                     return byId;
             }
@@ -8198,17 +8269,17 @@ namespace StandaloneBaseball
             string? homeLogo = GetTeamLogoPath(home) ?? GetTeamPhotoPaths(home).FirstOrDefault();
             var playoffSeries = FindMatchingPlayoffSeries(season, away.Id, home.Id);
             bool playoffGame = playoffSeries != null;
-            string gameTitle = playoffSeries != null
+            string gameTitle = season != null && playoffSeries != null
                 ? PlayoffGameTitle(season, playoffSeries)
                 : RegularGameTitle(away.Id, home.Id);
             string modeLabel = ModeLabelFor(mode);
 
             using var loading = new GameLoadingForm(
                 away,
-                TeamRecordText(season, away.Id),
+                season == null ? "" : TeamRecordText(season, away.Id),
                 awayLogo,
                 home,
-                TeamRecordText(season, home.Id),
+                season == null ? "" : TeamRecordText(season, home.Id),
                 homeLogo,
                 gameTitle,
                 modeLabel,
@@ -8796,7 +8867,7 @@ namespace StandaloneBaseball
             return "Non-Conference Game";
         }
 
-        private TeamPlacement FindTeamPlacement(Guid teamId)
+        private TeamPlacement? FindTeamPlacement(Guid teamId)
         {
             if (_league?.Structure?.Conferences == null)
                 return null;
@@ -9373,7 +9444,7 @@ namespace StandaloneBaseball
             });
         }
 
-        private IEnumerable<(Season Season, PlayerGameLine Line, SeasonAllStarSelection Selection)> AllStarLineItems()
+        private IEnumerable<(Season Season, PlayerGameLine Line, SeasonAllStarSelection? Selection)> AllStarLineItems()
         {
             foreach (var season in _league?.Seasons ?? Enumerable.Empty<Season>())
             {
@@ -9599,7 +9670,7 @@ namespace StandaloneBaseball
 
             EnsureJohnnyOatesHallOfFameEntry(season);
 
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.AwardsFinalized);
             RefreshAwardViews();
             LoadSelectedTeam();
         }
@@ -9668,18 +9739,18 @@ namespace StandaloneBaseball
             return champion?.CoachId ?? Guid.Empty;
         }
 
-        private Coach CoachById(Team team, Guid coachId)
+        private Coach? CoachById(Team team, Guid coachId)
         {
             EnsureTeamCoaches(team);
-            return team?.Coaches?.FirstOrDefault(c => c.Id == coachId)
-                ?? team?.Coaches?.FirstOrDefault(c => c.Id == team.CoachId);
+            return team.Coaches?.FirstOrDefault(c => c.Id == coachId)
+                ?? team.Coaches?.FirstOrDefault(c => c.Id == team.CoachId);
         }
 
         private sealed class AwardPlayerRow
         {
-            public Player Player { get; set; }
-            public Team Team { get; set; }
-            public PlayerSeasonStatLine Stats { get; set; }
+            public required Player Player { get; set; }
+            public required Team Team { get; set; }
+            public required PlayerSeasonStatLine Stats { get; set; }
             public double OffenseScore { get; set; }
             public double PitchingScore { get; set; }
             public double DefenseScore { get; set; }
@@ -10082,13 +10153,13 @@ namespace StandaloneBaseball
             SaveAllStarGameResult(season, blue, red, game.FinalResult);
         }
 
-        private static string FindAllStarGamePreviewImage()
+        private static string? FindAllStarGamePreviewImage()
         {
             string path = Path.Combine(AppContext.BaseDirectory, "Assets", "Loading Screens", "all_star_game_preview.png");
             return File.Exists(path) ? path : null;
         }
 
-        private bool CanPlayAllStarGame(Season season)
+        private bool CanPlayAllStarGame([NotNullWhen(true)] Season? season)
         {
             if (season == null)
             {
@@ -10688,7 +10759,7 @@ namespace StandaloneBaseball
 
             _league.HallOfFameEntries ??= new List<HallOfFameEntry>();
             _league.HallOfFameEntries.Add(CreateHallOfFameEntry(candidate));
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.HallOfFameChanged);
             RefreshHallOfFameViews();
         }
 
@@ -10712,13 +10783,13 @@ namespace StandaloneBaseball
 
             _league.HallOfFameEntries ??= new List<HallOfFameEntry>();
             _league.HallOfFameEntries.Add(CreateCoachHallOfFameEntry(candidate));
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.HallOfFameChanged);
             RefreshHallOfFameViews();
         }
 
         private void RemoveSelectedHallOfFameEntry()
         {
-            HallOfFameEntry entry = _hofDynastyGrid?.CurrentRow?.Tag as HallOfFameEntry
+            HallOfFameEntry? entry = _hofDynastyGrid?.CurrentRow?.Tag as HallOfFameEntry
                 ?? _hofTeamGrid?.CurrentRow?.Tag as HallOfFameEntry;
             if (entry == null)
             {
@@ -10733,7 +10804,7 @@ namespace StandaloneBaseball
                 return;
 
             _league.HallOfFameEntries.Remove(entry);
-            MarkDirty();
+            MarkDirty(LeagueAutosaveReason.HallOfFameChanged);
             RefreshHallOfFameViews();
         }
 
@@ -11556,7 +11627,7 @@ namespace StandaloneBaseball
             if (season == null) { MessageBox.Show(this, "Select a season first."); return; }
             if (RankingEngine.LatestRegularSeasonPoll(season) == null)
                 RankingEngine.SavePoll(season, RankingEngine.GeneratePoll(_league, season, RankingPollType.Weekly, CurrentCompletedWeek(season)));
-            var series = PlayoffEngine.GeneratePlayoffs(_league, season, out string error);
+            var series = PlayoffEngine.GeneratePlayoffs(_league, season, out string? error);
             if (error != null)
             {
                 MessageBox.Show(this, error, "Could not generate playoffs", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -11580,8 +11651,8 @@ namespace StandaloneBaseball
             }
 
             int simulated = 0;
-            Team newChampion = null;
-            PlayoffSeries championshipSeries = null;
+            Team? newChampion = null;
+            PlayoffSeries? championshipSeries = null;
             while (true)
             {
                 AdvancePlayoffBracket(season);
@@ -11655,7 +11726,7 @@ namespace StandaloneBaseball
                 ShowChampionshipDialog(season, newChampion, championshipSeries);
         }
 
-        private bool TryRecordChampion(Season season, PlayoffSeries series, out Team champion)
+        private bool TryRecordChampion(Season season, PlayoffSeries series, [NotNullWhen(true)] out Team? champion)
         {
             return ChampionshipLifecycleEngine.TryRecordChampion(_league, season, series, out champion);
         }
@@ -11699,8 +11770,8 @@ namespace StandaloneBaseball
         }
 
         private string FindTeam(Guid id) => _league.Teams.FirstOrDefault(t => t.Id == id)?.DisplayName ?? "(deleted team)";
-        private Team TeamById(Guid id) => _league.Teams.FirstOrDefault(t => t.Id == id);
-        private Player PlayerById(Guid id)
+        private Team? TeamById(Guid id) => _league.Teams.FirstOrDefault(t => t.Id == id);
+        private Player? PlayerById(Guid id)
             => _league?.Teams?
                 .SelectMany(t => (t.Roster ?? Enumerable.Empty<Player>())
                     .Concat(t.InjuredReserve ?? Enumerable.Empty<Player>())
@@ -11725,13 +11796,13 @@ namespace StandaloneBaseball
             _scoreboardPhotoTimer.Enabled = _scoreboardPhotoPaths.Count > 1;
         }
 
-        private void PaintField(object sender, PaintEventArgs e)
+        private void PaintField(object? sender, PaintEventArgs e)
         {
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             var r = _fieldPanel.ClientRectangle;
             var preset = SelectedFieldPreset();
-            string backgroundPath = ResolveFieldPreviewAssetPath(preset);
+            string? backgroundPath = ResolveFieldPreviewAssetPath(preset);
             if (!string.IsNullOrWhiteSpace(backgroundPath) && File.Exists(backgroundPath))
             {
                 try
@@ -11779,7 +11850,7 @@ namespace StandaloneBaseball
             }
         }
 
-        private string ResolveFieldPreviewAssetPath(BaseballFieldPreset preset)
+        private string? ResolveFieldPreviewAssetPath(BaseballFieldPreset? preset)
         {
             if (preset == null || string.IsNullOrWhiteSpace(preset.BackgroundAssetPath))
                 return null;
@@ -11793,7 +11864,7 @@ namespace StandaloneBaseball
 
             foreach (var overlay in preset.Overlays)
             {
-                string path = ResolveOverlayAssetPath(overlay.AssetPath);
+                string? path = ResolveOverlayAssetPath(overlay.AssetPath);
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                     continue;
 
@@ -11823,7 +11894,7 @@ namespace StandaloneBaseball
             }
         }
 
-        private static string ResolveOverlayAssetPath(string assetPath)
+        private static string? ResolveOverlayAssetPath(string? assetPath)
         {
             if (string.IsNullOrWhiteSpace(assetPath))
                 return null;
@@ -11919,6 +11990,7 @@ namespace StandaloneBaseball
             if (setup.ShowDialog(this) != DialogResult.OK)
                 return;
 
+            _autosave.CancelPending();
             _league = CreateStarterLeague(setup.SelectedRules, setup.DynastyName, setup.OwnerFullName);
             _league.AssetLibraryPath = setup.AssetLibraryPath ?? "";
             AssetPathResolver.ClearLeagueFilePath();
@@ -12044,6 +12116,7 @@ namespace StandaloneBaseball
 
         private void ApplyLoadedLeague(LeagueFile league, string primaryPath, bool recovered, string? backupPath)
         {
+            _autosave.CancelPending();
             _league = league ?? throw new InvalidDataException("The dynasty file did not contain league data.");
             _path = primaryPath;
             AssetPathResolver.SetLeagueFilePath(_path);
@@ -12085,6 +12158,7 @@ namespace StandaloneBaseball
             if (string.IsNullOrWhiteSpace(targetPath))
                 return false;
 
+            _autosave.CancelPending();
             try
             {
                 _path = targetPath;
@@ -12171,7 +12245,8 @@ namespace StandaloneBaseball
             string? leagueDirectory = string.IsNullOrWhiteSpace(_path) ? null : Path.GetDirectoryName(_path);
             string documentsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             string initialDirectory = new[] { leagueDirectory, documentsDirectory, AppContext.BaseDirectory }
-                .FirstOrDefault(Directory.Exists);
+                .FirstOrDefault(path => path != null && Directory.Exists(path))
+                ?? AppContext.BaseDirectory;
             using var dlg = new OpenFileDialog
             {
                 Filter = "NES ROM (*.nes)|*.nes|All files (*.*)|*.*",
@@ -12181,6 +12256,7 @@ namespace StandaloneBaseball
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
             try
             {
+                _autosave.CancelPending();
                 _league = RomSnapshotImporter.Import(dlg.FileName);
                 _path = null;
                 AssetPathResolver.ClearLeagueFilePath();
@@ -12195,20 +12271,72 @@ namespace StandaloneBaseball
             }
         }
 
-        private void MarkDirty()
+        private bool AutosaveHighValueChanges(IReadOnlyCollection<LeagueAutosaveReason> reasons)
+        {
+            if (!_dirty || _league == null || string.IsNullOrWhiteSpace(_path))
+                return true;
+
+            try
+            {
+                LeagueStore.Save(_path, _league);
+                _dirty = false;
+                Text = "Dan's RBI Baseball 2026";
+                if (_status != null)
+                    _status.Text = "Autosaved " + string.Join(", ", reasons.Select(AutosaveReasonLabel)) + ".";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _dirty = true;
+                Text = "Dan's RBI Baseball 2026 *";
+                if (_status != null)
+                    _status.Text = "Autosave failed. Changes remain in memory: " + ex.Message;
+                return false;
+            }
+        }
+
+        private static string AutosaveReasonLabel(LeagueAutosaveReason reason)
+            => reason switch
+            {
+                LeagueAutosaveReason.RosterChanged => "roster changes",
+                LeagueAutosaveReason.ScheduleGenerated => "schedule generation",
+                LeagueAutosaveReason.AwardsFinalized => "award finalization",
+                LeagueAutosaveReason.HallOfFameChanged => "Hall of Fame changes",
+                _ => "high-value changes"
+            };
+
+        private void MarkDirty(LeagueAutosaveReason? autosaveReason = null)
         {
             _dirty = true;
             Text = "Dan's RBI Baseball 2026 *";
             if (_status != null) _status.Text = "Unsaved changes.";
+            if (autosaveReason.HasValue && !string.IsNullOrWhiteSpace(_path))
+                _autosave.Request(autosaveReason.Value);
         }
 
         private bool ConfirmDiscard()
         {
             if (!_dirty) return true;
-            var r = MessageBox.Show(this, "Save changes first?", "Unsaved changes", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-            if (r == DialogResult.Cancel) return false;
-            if (r == DialogResult.Yes) return SaveLeague(false);
-            return true;
+            using (_autosave.Suspend())
+            {
+                var r = MessageBox.Show(this, "Save changes first?", "Unsaved changes", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (r == DialogResult.Cancel) return false;
+                if (r == DialogResult.Yes) return SaveLeague(false);
+
+                _autosave.CancelPending();
+                return true;
+            }
+        }
+
+        private void MainFormClosing(object? sender, FormClosingEventArgs e)
+        {
+            if (!ConfirmDiscard())
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            _autosave.CancelPending();
         }
     }
 }

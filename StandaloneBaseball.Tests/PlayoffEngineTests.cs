@@ -117,7 +117,7 @@ public sealed class PlayoffEngineTests
             series.WinnerTeamId = series.TeamAId;
         Assert.True(PlayoffEngine.AdvanceBracket(league, season));
 
-        var nationalSeries = Assert.Single(season.Playoffs.Where(series => series.Round == 5));
+        var nationalSeries = Assert.Single(season.Playoffs, series => series.Round == 5);
         Assert.False(nationalSeries.ConferenceId.HasValue);
         Assert.NotEqual(Guid.Empty, nationalSeries.TeamAId);
         Assert.NotEqual(Guid.Empty, nationalSeries.TeamBId);
@@ -203,8 +203,9 @@ public sealed class PlayoffEngineTests
                 break;
         }
 
-        var worldSeries = Assert.Single(season.Playoffs.Where(series =>
-            series.Round == season.Playoffs.Max(value => value.Round)));
+        var worldSeries = Assert.Single(
+            season.Playoffs,
+            series => series.Round == season.Playoffs.Max(value => value.Round));
         Assert.Equal("World Series", worldSeries.RoundName);
         Assert.True(worldSeries.WinnerTeamId.HasValue);
         Assert.Contains(worldSeries.WinnerTeamId.Value, new[] { worldSeries.TeamAId, worldSeries.TeamBId });

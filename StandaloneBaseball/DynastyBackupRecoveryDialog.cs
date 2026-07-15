@@ -13,7 +13,7 @@ namespace StandaloneBaseball
         private readonly Button _restoreButton = new Button();
         private readonly List<LeagueBackupInfo> _backups;
 
-        public LeagueBackupInfo SelectedBackup { get; private set; }
+        public LeagueBackupInfo? SelectedBackup { get; private set; }
 
         public DynastyBackupRecoveryDialog(string primaryPath, string loadError, IEnumerable<LeagueBackupInfo> backups)
         {
@@ -134,7 +134,7 @@ namespace StandaloneBaseball
             _restoreButton.Enabled = SelectedRowBackup()?.IsValid == true;
         }
 
-        private LeagueBackupInfo SelectedRowBackup()
+        private LeagueBackupInfo? SelectedRowBackup()
             => _grid.SelectedRows.Count == 0 ? null : _grid.SelectedRows[0].Tag as LeagueBackupInfo;
 
         private void AcceptSelection()

@@ -8,13 +8,47 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $results = Join-Path $root "TestResults\Coverage"
+$expectedSdkVersion = "8.0.422"
+
+function Get-PinnedDotNet {
+    $candidates = @()
+    if ($env:DOTNET_ROOT) {
+        $candidates += (Join-Path $env:DOTNET_ROOT "dotnet.exe")
+    }
+    $candidates += (Join-Path $HOME ".dotnet\dotnet.exe")
+    $dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
+    if ($dotnetCommand) {
+        $candidates += $dotnetCommand.Source
+    }
+
+    $foundVersions = @()
+    foreach ($candidate in ($candidates | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $candidate)) {
+            continue
+        }
+        try {
+            $version = (& $candidate --version 2>$null | Select-Object -First 1).Trim()
+            $foundVersions += "$candidate ($version)"
+            if ($version -eq $expectedSdkVersion) {
+                return $candidate
+            }
+        }
+        catch {
+            $foundVersions += "$candidate (unusable)"
+        }
+    }
+
+    $details = if ($foundVersions.Count -gt 0) { $foundVersions -join "; " } else { "no dotnet host found" }
+    throw ".NET SDK $expectedSdkVersion is required by global.json. Found: $details. Install it from https://dotnet.microsoft.com/download/dotnet/8.0."
+}
 
 if (Test-Path -LiteralPath $results) {
     Remove-Item -LiteralPath $results -Recurse -Force
 }
 
 $coverageOutput = Join-Path $results "coverage.cobertura.xml"
-dotnet test (Join-Path $root "DansRBIBaseball2026.sln") `
+$dotnet = Get-PinnedDotNet
+& $dotnet test (Join-Path $root "DansRBIBaseball2026.sln") `
     -c $Configuration `
     /p:CollectCoverage=true `
     /p:CoverletOutputFormat=cobertura `

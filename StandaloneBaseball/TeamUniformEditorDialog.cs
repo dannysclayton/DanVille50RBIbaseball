@@ -157,7 +157,7 @@ namespace StandaloneBaseball
             _grid.Refresh();
         }
 
-        private TeamUniformSet SelectedUniform()
+        private TeamUniformSet? SelectedUniform()
             => _grid.CurrentRow?.DataBoundItem as TeamUniformSet;
 
         private void NormalizeActiveUniforms()
@@ -177,7 +177,7 @@ namespace StandaloneBaseball
                 item.Active = item.Id == active.Id;
         }
 
-        private void FormatCell(object sender, DataGridViewCellFormattingEventArgs e)
+        private void FormatCell(object? sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _uniforms.Count)
                 return;

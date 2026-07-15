@@ -48,7 +48,7 @@ namespace StandaloneBaseball
             AssignTeamsEvenly(league);
         }
 
-        public static string ValidateStructure(LeagueFile league)
+        public static string? ValidateStructure(LeagueFile league)
         {
             if (league.Structure == null || league.Structure.Conferences == null || league.Structure.Conferences.Count < 1)
                 return "The league must have at least 1 conference.";
@@ -123,7 +123,7 @@ namespace StandaloneBaseball
                 .ToList();
         }
 
-        public static List<PlayoffSeries> GeneratePlayoffs(LeagueFile league, Season season, out string error)
+        public static List<PlayoffSeries> GeneratePlayoffs(LeagueFile league, Season season, out string? error)
         {
             EnsureDefaultStructure(league);
             error = ValidateStructure(league);
@@ -419,7 +419,7 @@ namespace StandaloneBaseball
             return result;
         }
 
-        private static AdvancingTeam TakeAdvancingTeam(List<AdvancingTeam> advancing, PlayoffSeries target)
+        private static AdvancingTeam? TakeAdvancingTeam(List<AdvancingTeam> advancing, PlayoffSeries target)
         {
             var eligible = advancing.Where(team =>
                 (target.FeederSeriesIds == null || target.FeederSeriesIds.Count == 0 || target.FeederSeriesIds.Contains(team.SourceSeriesId)) &&
@@ -453,10 +453,10 @@ namespace StandaloneBaseball
                 if (second != null)
                     advancing.RemoveAt(0);
 
-                string conferenceName = conferenceId.HasValue
+                string? conferenceName = conferenceId.HasValue
                     ? LeagueHierarchyEngine.FindConference(league, conferenceId.Value)?.Name
                     : null;
-                string regionName = regionId.HasValue
+                string? regionName = regionId.HasValue
                     ? LeagueHierarchyEngine.FindRegion(league, regionId.Value)?.Name
                     : null;
                 var added = new PlayoffSeries
@@ -795,7 +795,7 @@ namespace StandaloneBaseball
             public Guid Wildcard { get; set; }
         }
 
-        private static DistrictQualifiers Qualify(District district, List<TeamStanding> standings)
+        private static DistrictQualifiers? Qualify(District district, List<TeamStanding> standings)
         {
             var teams = standings.Where(s => district.TeamIds.Contains(s.TeamId)).Take(3).ToList();
             if (teams.Count < 3) return null;

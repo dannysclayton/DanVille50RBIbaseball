@@ -10,19 +10,19 @@ namespace StandaloneBaseball
     internal sealed class SpriteCreatorDialog : Form
     {
         private readonly Team _team;
-        private readonly Player _player;
+        private readonly Player? _player;
         private readonly string _outputDir;
         private readonly List<string> _sourcePaths = new List<string>();
         private readonly ListBox _sourceList;
         private readonly PictureBox _preview;
         private readonly RadioButton _teamTarget;
         private readonly RadioButton _playerTarget;
-        private Bitmap _previewImage;
+        private Bitmap? _previewImage;
 
         public string SavedSpriteSheetPath { get; private set; } = "";
         public bool SavedForPlayer => _playerTarget.Checked && _player != null;
 
-        public SpriteCreatorDialog(Team team, Player player, string outputDir, string initialDirectory)
+        public SpriteCreatorDialog(Team team, Player? player, string outputDir, string initialDirectory)
         {
             _team = team ?? throw new ArgumentNullException(nameof(team));
             _player = player;
@@ -156,7 +156,7 @@ namespace StandaloneBaseball
         {
             Directory.CreateDirectory(_outputDir);
             string baseName = SavedForPlayer
-                ? Sanitize(_player.Name) + "_sprite_page.png"
+                ? Sanitize(_player?.Name ?? "player") + "_sprite_page.png"
                 : "team_sprite_page.png";
             string outputPath = Path.Combine(_outputDir, baseName);
 
@@ -174,7 +174,7 @@ namespace StandaloneBaseball
                 Team = _team,
                 Player = SavedForPlayer ? _player : null,
                 SourceImagePaths = _sourcePaths.ToArray(),
-                Label = SavedForPlayer ? _player?.Name : _team.DisplayName
+                Label = SavedForPlayer ? _player?.Name ?? "" : _team.DisplayName
             };
         }
 

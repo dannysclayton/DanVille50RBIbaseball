@@ -13,7 +13,7 @@ namespace StandaloneBaseball
         private readonly DataGridView _grid;
         private readonly Button _createButton;
 
-        public SchoolTeamRecord SelectedSchool { get; private set; }
+        public SchoolTeamRecord? SelectedSchool { get; private set; }
 
         public SchoolTeamPickerDialog(IEnumerable<SchoolTeamRecord> schools)
         {

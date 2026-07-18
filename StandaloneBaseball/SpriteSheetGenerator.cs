@@ -21,6 +21,7 @@ namespace StandaloneBaseball
         public Player? Player { get; set; }
         public IReadOnlyList<string> SourceImagePaths { get; set; } = Array.Empty<string>();
         public string Label { get; set; } = "";
+        public bool CleanGameplayFrames { get; set; }
     }
 
     internal static class SpriteSheetGenerator
@@ -82,26 +83,32 @@ namespace StandaloneBaseball
             Color cap = options.Player?.CapHelmetColor(options.Team)
                 ?? Color.FromArgb(options.Team?.SecondaryArgb ?? unchecked((int)0xFFFFC857));
 
-            using var backdrop = new SolidBrush(Color.FromArgb(32, 0, 0, 0));
-            g.FillRectangle(backdrop, frame);
+            if (!options.CleanGameplayFrames)
+            {
+                using var backdrop = new SolidBrush(Color.FromArgb(32, 0, 0, 0));
+                g.FillRectangle(backdrop, frame);
+            }
 
             if (source != null)
                 DrawSourceImage(g, source, frame);
             else
                 DrawGeneratedPlayer(g, frame, jersey, pants, cap, index);
 
-            DrawUniformSwatches(g, frame, jersey, pants, cap);
+            if (!options.CleanGameplayFrames)
+            {
+                DrawUniformSwatches(g, frame, jersey, pants, cap);
 
-            string pose = index < PoseLabels.Length ? PoseLabels[index] : index.ToString();
-            using var font = new Font("Segoe UI", 6f, FontStyle.Bold);
-            using var labelBrush = new SolidBrush(Color.FromArgb(220, Color.White));
-            using var labelShadow = new SolidBrush(Color.FromArgb(170, Color.Black));
-            Rectangle labelRect = new Rectangle(frame.Left + 2, frame.Bottom - 11, frame.Width - 4, 10);
-            g.DrawString(pose, font, labelShadow, labelRect.Left + 1, labelRect.Top + 1);
-            g.DrawString(pose, font, labelBrush, labelRect.Left, labelRect.Top);
+                string pose = index < PoseLabels.Length ? PoseLabels[index] : index.ToString();
+                using var font = new Font("Segoe UI", 6f, FontStyle.Bold);
+                using var labelBrush = new SolidBrush(Color.FromArgb(220, Color.White));
+                using var labelShadow = new SolidBrush(Color.FromArgb(170, Color.Black));
+                Rectangle labelRect = new Rectangle(frame.Left + 2, frame.Bottom - 11, frame.Width - 4, 10);
+                g.DrawString(pose, font, labelShadow, labelRect.Left + 1, labelRect.Top + 1);
+                g.DrawString(pose, font, labelBrush, labelRect.Left, labelRect.Top);
 
-            using var border = new Pen(Color.FromArgb(55, Color.White));
-            g.DrawRectangle(border, frame.Left, frame.Top, frame.Width - 1, frame.Height - 1);
+                using var border = new Pen(Color.FromArgb(55, Color.White));
+                g.DrawRectangle(border, frame.Left, frame.Top, frame.Width - 1, frame.Height - 1);
+            }
         }
 
         private static void DrawSourceImage(Graphics g, Bitmap image, Rectangle frame)
@@ -154,6 +161,25 @@ namespace StandaloneBaseball
             g.DrawLine(pantsPen, cx + 4, top + 43, cx + 12 + stride, top + 54);
             g.DrawLine(shoe, cx - 15 - stride, top + 56, cx - 8 - stride, top + 56);
             g.DrawLine(shoe, cx + 9 + stride, top + 56, cx + 16 + stride, top + 56);
+
+            if (index == 4 || index == 5)
+            {
+                using var bat = new Pen(Color.FromArgb(190, 146, 86), 4f);
+                float swing = index == 5 ? -18f : 15f;
+                g.DrawLine(bat, cx + 8, top + 27, cx + 26, top + 14 + swing);
+            }
+            else if (index == 8 || index == 9 || index == 2)
+            {
+                using var ball = new SolidBrush(Color.White);
+                float ballX = index == 8 ? cx + 24 : cx - 20;
+                float ballY = index == 8 ? top + 17 : top + 31;
+                g.FillEllipse(ball, ballX - 3, ballY - 3, 6, 6);
+            }
+            else if (index == 1 || index == 3 || index == 12)
+            {
+                using var glove = new SolidBrush(Color.FromArgb(133, 82, 48));
+                g.FillEllipse(glove, cx - 24, top + 32, 10, 12);
+            }
         }
 
         private static void DrawUniformSwatches(Graphics g, Rectangle frame, Color jersey, Color pants, Color cap)

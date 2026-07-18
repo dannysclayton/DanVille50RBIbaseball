@@ -22,6 +22,8 @@ namespace StandaloneBaseball
         private DateTime _lastStickMove = DateTime.MinValue;
         private int _selectedIndex;
         private bool _launching;
+        private string? _controllerDeviceId;
+        private string? _controllerDisplayName;
 
         public MainMenuForm()
         {
@@ -71,6 +73,7 @@ namespace StandaloneBaseball
             if (_menuImage == null)
             {
                 DrawFallback(e.Graphics);
+                DrawControllerStatus(e.Graphics);
                 return;
             }
 
@@ -80,6 +83,23 @@ namespace StandaloneBaseball
             e.Graphics.DrawImage(_menuImage, imageBounds);
 
             DrawSelection(e.Graphics, imageBounds);
+            DrawControllerStatus(e.Graphics);
+        }
+
+        private void DrawControllerStatus(Graphics graphics)
+        {
+            string text = string.IsNullOrWhiteSpace(_controllerDisplayName)
+                ? "Controller: scanning (keyboard ready)"
+                : "Controller ready: " + _controllerDisplayName;
+            Rectangle bounds = new Rectangle(18, Math.Max(8, ClientSize.Height - 42), Math.Min(470, ClientSize.Width - 36), 28);
+            using var fill = new SolidBrush(Color.FromArgb(205, 5, 16, 34));
+            using var outline = new Pen(string.IsNullOrWhiteSpace(_controllerDisplayName)
+                ? Color.FromArgb(155, 175, 195)
+                : Color.FromArgb(80, 220, 140), 1.5f);
+            graphics.FillRoundedRectangle(fill, bounds, 6);
+            graphics.DrawRoundedRectangle(outline, bounds, 6);
+            TextRenderer.DrawText(graphics, text, Font, bounds, Color.White,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 
         private void DrawFallback(Graphics graphics)
@@ -147,17 +167,27 @@ namespace StandaloneBaseball
 
         private void PollController()
         {
-            if (_launching || !XInputController.TryFindConnectedController(out int controllerIndex)
-                || !XInputController.TryGetState(controllerIndex, out var state))
+            if (_launching || !GameControllerDiscovery.TryReadPreferredOrFirst(-1, _controllerDeviceId, out GameControllerReading reading))
             {
+                bool changed = !string.IsNullOrWhiteSpace(_controllerDeviceId);
+                _controllerDeviceId = null;
+                _controllerDisplayName = null;
                 _previousButtons = XInputButtons.None;
                 _currentButtons = XInputButtons.None;
                 _lastStickDirection = 0;
+                if (changed)
+                    Invalidate();
                 return;
             }
 
+            bool deviceChanged = !string.Equals(_controllerDeviceId, reading.DeviceId, StringComparison.Ordinal);
+            _controllerDeviceId = reading.DeviceId;
+            _controllerDisplayName = reading.DisplayName;
+            XInputGamepadState state = reading.State;
             _previousButtons = _currentButtons;
             _currentButtons = state.Buttons;
+            if (deviceChanged)
+                Invalidate();
 
             if (PressedThisPoll(XInputButtons.DPadDown))
                 MoveSelection(1);

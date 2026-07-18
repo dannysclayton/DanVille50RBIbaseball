@@ -11,6 +11,8 @@ namespace StandaloneBaseball
         private int _leftStickDeadzone = XInputController.DefaultLeftThumbDeadzone;
 
         public int? ConnectedControllerIndex { get; private set; }
+        public string? ConnectedControllerId { get; private set; }
+        public string? ConnectedControllerName { get; private set; }
 
         public int PreferredControllerIndex
         {
@@ -51,13 +53,16 @@ namespace StandaloneBaseball
 
             SelectedPitchTypeChanged = false;
 
-            if (!TryReadController(out var state))
+            if (!TryReadController(out GameControllerReading reading))
             {
                 ResetConnectionState();
                 return false;
             }
 
+            XInputGamepadState state = reading.State;
             ConnectedControllerIndex = state.ControllerIndex;
+            ConnectedControllerId = reading.DeviceId;
+            ConnectedControllerName = reading.DisplayName;
             _previousButtons = _currentButtons;
             _currentButtons = state.Buttons;
             LeftStickDirection = DirectionFromLeftStick(state.LeftThumbX, state.LeftThumbY);
@@ -75,25 +80,19 @@ namespace StandaloneBaseball
         private void ResetConnectionState()
         {
             ConnectedControllerIndex = null;
+            ConnectedControllerId = null;
+            ConnectedControllerName = null;
             _previousButtons = XInputButtons.None;
             _currentButtons = XInputButtons.None;
             LeftStickDirection = default;
         }
 
-        private bool TryReadController(out XInputGamepadState state)
+        private bool TryReadController(out GameControllerReading reading)
         {
-            if (_preferredControllerIndex >= 0)
-            {
-                return XInputController.TryGetState(_preferredControllerIndex, out state);
-            }
-
-            if (!XInputController.TryFindConnectedController(out var controllerIndex))
-            {
-                state = default;
-                return false;
-            }
-
-            return XInputController.TryGetState(controllerIndex, out state);
+            return GameControllerDiscovery.TryReadPreferredOrFirst(
+                _preferredControllerIndex,
+                ConnectedControllerId,
+                out reading);
         }
 
         private void AddCommandsForButtonEdges(ICollection<GameplayInputCommand> pendingCommands)

@@ -55,6 +55,7 @@ namespace StandaloneBaseball
             if (_state != null)
             {
                 DrawBases(g, field, _state);
+                DrawBatter(g, field, _state);
                 DrawFielders(g, field, _state);
                 DrawReplayActors(g, field, _state);
                 DrawBall(g, field, _state);
@@ -447,9 +448,38 @@ namespace StandaloneBaseball
 
                 if (state.Bases[i].Occupied)
                 {
-                    DrawSpriteOrMarker(g, bases[i].X, bases[i].Y - 24, 12, state.Bases[i].RunnerColor, "R", true, state.Bases[i].Player, state.Bases[i].Team);
+                    PointF runnerPoint = bases[i];
+                    if (state.Phase == GameplayRenderingPhase.BallInPlay)
+                    {
+                        PointF next = i == 0 ? bases[1] : i == 1 ? bases[2] : Map(field, 0.5f, 0.84f);
+                        runnerPoint = Lerp(runnerPoint, next, Math.Min(0.88f, state.AnimationProgress * 0.9f));
+                    }
+                    DrawSpriteOrMarker(g, runnerPoint.X, runnerPoint.Y - 24, 12, state.Bases[i].RunnerColor, "R", true,
+                        state.Bases[i].Player, state.Bases[i].Team,
+                        state.Phase == GameplayRenderingPhase.BallInPlay ? 6 : 14);
                 }
             }
+        }
+
+        private void DrawBatter(Graphics g, Rectangle field, GameplayRenderingGameState state)
+        {
+            Player? batter = state.CurrentBatterPlayer();
+            if (batter == null)
+                return;
+
+            bool leftHanded = string.Equals(batter.Bats, "L", StringComparison.OrdinalIgnoreCase);
+            PointF home = Map(field, leftHanded ? 0.535f : 0.465f, 0.835f);
+            int frame = 4;
+            if (state.Phase == GameplayRenderingPhase.Pitching && state.BallPosition.Y >= 0.73f)
+                frame = 5;
+            else if (state.Phase == GameplayRenderingPhase.BallInPlay)
+            {
+                home = Lerp(home, Map(field, 0.64f, 0.72f), Math.Min(0.92f, state.AnimationProgress));
+                frame = 6;
+            }
+
+            DrawSpriteOrMarker(g, home.X, home.Y - 24, 14, state.OffenseColor, "B", true,
+                batter, state.BattingTeam, frame);
         }
 
         private void DrawFielders(Graphics g, Rectangle field, GameplayRenderingGameState state)
@@ -458,7 +488,8 @@ namespace StandaloneBaseball
             {
                 GameplayRenderingPlayerMarker marker = state.Fielders[i];
                 PointF p = Map(field, marker.Position.X, marker.Position.Y);
-                DrawSpriteOrMarker(g, p.X, p.Y, i == state.ActiveFielderIndex ? 15 : 12, marker.Color, marker.Label, i == state.ActiveFielderIndex, marker.Player, marker.Team);
+                DrawSpriteOrMarker(g, p.X, p.Y, i == state.ActiveFielderIndex ? 15 : 12, marker.Color, marker.Label,
+                    i == state.ActiveFielderIndex, marker.Player, marker.Team, FielderFrame(marker, state, i));
             }
         }
 
@@ -469,7 +500,7 @@ namespace StandaloneBaseball
                 PointF point = Map(field, marker.Position.X, marker.Position.Y);
                 DrawSpriteOrMarker(g, point.X, point.Y, marker.Runner ? 13 : 14, marker.Color,
                     string.IsNullOrWhiteSpace(marker.Label) ? (marker.Runner ? "R" : "F") : marker.Label,
-                    marker.Detail == "highlight", marker.Player, marker.Team);
+                    marker.Detail == "highlight", marker.Player, marker.Team, marker.Runner ? 6 : 1);
             }
         }
 
@@ -483,7 +514,9 @@ namespace StandaloneBaseball
             ball.Y -= lift;
             if (state.BallTrail > 0.01f)
             {
-                PointF mound = Map(field, 0.5f, 0.62f);
+                PointF mound = state.Phase == GameplayRenderingPhase.BallInPlay
+                    ? Map(field, 0.5f, 0.84f)
+                    : Map(field, 0.5f, 0.62f);
                 using var trail = new Pen(Color.FromArgb(120, Color.White), 3f);
                 g.DrawLine(trail, mound, ball);
             }
@@ -545,6 +578,15 @@ namespace StandaloneBaseball
             g.FillRectangle(fill, mode);
             g.DrawRectangle(outline, mode);
             TextRenderer.DrawText(g, state.ModeLabel ?? "", ModeFont, mode, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+            if (!string.IsNullOrWhiteSpace(state.ControlHint))
+            {
+                Rectangle hint = new Rectangle(mode.Right + 10, mode.Top, Math.Max(1, bounds.Right - mode.Right - 28), mode.Height);
+                using var hintFill = new SolidBrush(Color.FromArgb(185, 0, 0, 0));
+                g.FillRectangle(hintFill, hint);
+                TextRenderer.DrawText(g, state.ControlHint, HudSmallFont, hint, Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            }
         }
 
         private static void DrawCountLights(Graphics g, Point origin, int active, int total, Color activeColor, string label)
@@ -571,7 +613,8 @@ namespace StandaloneBaseball
             TextRenderer.DrawText(g, label, MarkerFont, new Rectangle((int)(x - radius), (int)(y - 8), (int)(radius * 2), 16), Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 
-        private void DrawSpriteOrMarker(Graphics g, float x, float y, float radius, Color color, string label, bool highlighted, Player? player, Team? team)
+        private void DrawSpriteOrMarker(Graphics g, float x, float y, float radius, Color color, string label,
+            bool highlighted, Player? player, Team? team, int frameIndex)
         {
             Image? sheet = LoadSpriteSheet(player, team);
             if (sheet == null)
@@ -588,23 +631,38 @@ namespace StandaloneBaseball
                 return;
             }
 
-            float drawSize = highlighted ? 50f : 42f;
-            Rectangle src = new Rectangle(0, 0, frameWidth, frameHeight);
+            int frameCount = Math.Max(1, (sheet.Width / frameWidth) * (sheet.Height / frameHeight));
+            frameIndex = Math.Clamp(frameIndex, 0, frameCount - 1);
+            int columns = Math.Max(1, sheet.Width / frameWidth);
+            float drawSize = highlighted ? 72f : 62f;
+            Rectangle src = new Rectangle((frameIndex % columns) * frameWidth, (frameIndex / columns) * frameHeight, frameWidth, frameHeight);
             RectangleF dest = new RectangleF(x - drawSize / 2f, y - drawSize / 2f, drawSize, drawSize);
 
             using var shadow = new SolidBrush(Color.FromArgb(100, Color.Black));
             g.FillEllipse(shadow, x - drawSize / 2f + 3, y + drawSize / 2f - 8, drawSize, 12);
             g.DrawImage(sheet, dest, src, GraphicsUnit.Pixel);
 
-            using var ring = new Pen(highlighted ? Color.White : Color.FromArgb(180, 245, 245, 245), highlighted ? 3f : 1.5f);
-            g.DrawEllipse(ring, x - drawSize / 2f, y - drawSize / 2f, drawSize, drawSize);
+            if (highlighted)
+            {
+                using var ring = new Pen(Color.White, 3f);
+                g.DrawEllipse(ring, x - drawSize / 2f, y - drawSize / 2f, drawSize, drawSize);
+            }
+
+            if (!string.IsNullOrWhiteSpace(label) && label != "B" && label != "R")
+            {
+                Rectangle badge = new Rectangle((int)x - 18, (int)(y + drawSize / 2f - 4), 36, 18);
+                using var badgeFill = new SolidBrush(Color.FromArgb(210, color));
+                g.FillEllipse(badgeFill, badge);
+                TextRenderer.DrawText(g, label, MarkerFont, badge, Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            }
         }
 
         private Image? LoadSpriteSheet(Player? player, Team? team)
         {
             string? path = FirstExistingPath(player?.SpriteSheetPath, team?.SpriteSheetPath);
             if (string.IsNullOrWhiteSpace(path))
-                return null;
+                return LoadGeneratedSpriteSheet(player, team);
 
             if (_spriteCache.TryGetValue(path, out Image? cached))
                 return cached;
@@ -621,6 +679,45 @@ namespace StandaloneBaseball
                 _spriteCache[path] = null;
                 return null;
             }
+        }
+
+        private Image? LoadGeneratedSpriteSheet(Player? player, Team? team)
+        {
+            if (team == null)
+                return null;
+            string key = "generated:" + team.Id.ToString("N") + ":" + (player?.Id.ToString("N") ?? "generic") + ":" +
+                team.PrimaryArgb + ":" + team.SecondaryArgb;
+            if (_spriteCache.TryGetValue(key, out Image? cached))
+                return cached;
+
+            try
+            {
+                Image generated = SpriteSheetGenerator.Generate(new SpriteSheetGeneratorOptions
+                {
+                    Team = team,
+                    Player = player,
+                    Label = player?.Name ?? team.ScoreboardName,
+                    CleanGameplayFrames = true
+                });
+                _spriteCache[key] = generated;
+                return generated;
+            }
+            catch
+            {
+                _spriteCache[key] = null;
+                return null;
+            }
+        }
+
+        private static int FielderFrame(GameplayRenderingPlayerMarker marker, GameplayRenderingGameState state, int index)
+        {
+            if (marker.Label == "P" && state.Phase == GameplayRenderingPhase.Pitching)
+                return state.AnimationProgress < 0.45f ? 9 : 8;
+            if (marker.Label == "C")
+                return 12;
+            if (state.Phase == GameplayRenderingPhase.BallInPlay && index == state.ActiveFielderIndex)
+                return state.AnimationProgress < 0.78f ? 1 : 3;
+            return 0;
         }
 
         private static string? FirstExistingPath(params string?[] paths)
@@ -641,5 +738,8 @@ namespace StandaloneBaseball
 
         private static PointF Map(Rectangle field, float x, float y)
             => new PointF(field.Left + field.Width * x, field.Top + field.Height * y);
+
+        private static PointF Lerp(PointF start, PointF end, float progress)
+            => new PointF(start.X + (end.X - start.X) * progress, start.Y + (end.Y - start.Y) * progress);
     }
 }

@@ -252,6 +252,8 @@ namespace StandaloneBaseball
         public bool ControllerEnabled { get; set; } = true;
 
         public int? ConnectedControllerIndex => ControllerEnabled ? _controllerInput.ConnectedControllerIndex : null;
+        public string? ConnectedControllerId => ControllerEnabled ? _controllerInput.ConnectedControllerId : null;
+        public string? ConnectedControllerName => ControllerEnabled ? _controllerInput.ConnectedControllerName : null;
 
         public int PreferredControllerIndex
         {

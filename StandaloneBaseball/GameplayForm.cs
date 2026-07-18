@@ -13,6 +13,9 @@ namespace StandaloneBaseball
     public sealed class GameplayForm : Form
     {
         private const int DefaultTickIntervalMilliseconds = 16;
+        private const int CpuPitchDelayTicks = 105;
+        private const float PitchProgressPerTick = 0.018f;
+        private const float BallInPlayProgressPerTick = 0.014f;
         private const int SeniorStarterPitchLimit = 100;
         private const int ReliefPitcherMaxOuts = 6;
         private const int MidInningReliefBoostPercent = 25;
@@ -112,6 +115,7 @@ namespace StandaloneBaseball
         private readonly List<HalfInningSnapshot> _completedHalfInnings = new List<HalfInningSnapshot>();
         private readonly HashSet<string> _recordedHalfInnings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly Label _strategyStatusLabel = new Label();
+        private readonly Label _controlHintLabel = new Label();
         private readonly List<CutsceneDefinition> _leagueCutscenes = new List<CutsceneDefinition>();
         private readonly List<CutsceneDefinition> _awayCutscenes = new List<CutsceneDefinition>();
         private readonly List<CutsceneDefinition> _homeCutscenes = new List<CutsceneDefinition>();
@@ -120,9 +124,10 @@ namespace StandaloneBaseball
         private Button? _moundVisitButton;
         private Button? _saveGameButton;
         private ComboBox? _inputModeCombo;
+        private readonly Label _controllerStatusLabel = new Label();
         private GameMode _mode = GameMode.UserVsCpu;
         private bool _paused;
-        private bool _controllerWasConnected;
+        private string? _connectedControllerId;
         private bool _playedPlayBall;
         private bool _pregameCeremonyStarted;
         private bool _topHalfMusicPlaying;
@@ -458,7 +463,7 @@ namespace StandaloneBaseball
                 RowCount = 1
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 270));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.Controls.Add(_surface, 0, 0);
 
@@ -473,12 +478,50 @@ namespace StandaloneBaseball
             };
 
             _strategyStatusLabel.AutoSize = false;
-            _strategyStatusLabel.Width = 198;
+            _strategyStatusLabel.Width = 238;
             _strategyStatusLabel.Height = 54;
             _strategyStatusLabel.ForeColor = Color.White;
             _strategyStatusLabel.Text = "Strategy";
             _strategyStatusLabel.TextAlign = ContentAlignment.MiddleLeft;
             panel.Controls.Add(_strategyStatusLabel);
+
+            _controlHintLabel.AutoSize = false;
+            _controlHintLabel.Width = 238;
+            _controlHintLabel.Height = 74;
+            _controlHintLabel.ForeColor = Color.White;
+            _controlHintLabel.Text = "Game controls";
+            _controlHintLabel.TextAlign = ContentAlignment.MiddleLeft;
+            panel.Controls.Add(_controlHintLabel);
+
+            var gameControls = AddStrategyGroup(panel, "Game Controls");
+            AddStrategyButton(gameControls, "Pitch / Swing", PrimaryAction, "Primary gameplay action");
+            AddStrategyButton(gameControls, "Pause / Resume", () =>
+            {
+                _paused = !_paused;
+                _state.ModeLabel = _paused ? "Paused" : "Ready";
+            }, null);
+            _saveGameButton = AddStrategyButton(gameControls, "Save In-Game", RequestInGameSave, null);
+            _inputModeCombo = new ComboBox
+            {
+                Width = 216,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Margin = new Padding(0, 4, 0, 0)
+            };
+            RefreshInputModeComboItems();
+            _inputModeCombo.SelectedIndexChanged += (s, e) =>
+            {
+                if (_inputModeCombo.SelectedItem is LiveInputModeItem item)
+                    ApplyLiveInputMode(item);
+            };
+            gameControls.Controls.Add(_inputModeCombo);
+
+            _controllerStatusLabel.AutoSize = false;
+            _controllerStatusLabel.Width = 216;
+            _controllerStatusLabel.Height = 42;
+            _controllerStatusLabel.ForeColor = Color.Silver;
+            _controllerStatusLabel.Text = "Controller: scanning...";
+            _controllerStatusLabel.TextAlign = ContentAlignment.MiddleLeft;
+            gameControls.Controls.Add(_controllerStatusLabel);
 
             var offense = AddStrategyGroup(panel, "Offense");
             AddOffensiveStrategyButton(offense, OffensiveStrategyCall.Safe, "Safe");
@@ -506,22 +549,6 @@ namespace StandaloneBaseball
             var coaching = AddStrategyGroup(panel, "Coaching");
             _moundVisitButton = AddStrategyButton(coaching, "Mound Visit", () => TryMoundVisit(), null);
 
-            var gameControls = AddStrategyGroup(panel, "Game");
-            _saveGameButton = AddStrategyButton(gameControls, "Save In-Game", RequestInGameSave, null);
-            _inputModeCombo = new ComboBox
-            {
-                Width = 176,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Margin = new Padding(0, 4, 0, 0)
-            };
-            RefreshInputModeComboItems();
-            _inputModeCombo.SelectedIndexChanged += (s, e) =>
-            {
-                if (_inputModeCombo.SelectedItem is LiveInputModeItem item)
-                    ApplyLiveInputMode(item);
-            };
-            gameControls.Controls.Add(_inputModeCombo);
-
             root.Controls.Add(panel, 1, 0);
             Controls.Add(root);
         }
@@ -540,7 +567,7 @@ namespace StandaloneBaseball
             {
                 Text = title,
                 ForeColor = Color.White,
-                Width = 205,
+                Width = 245,
                 AutoSize = true,
                 Padding = new Padding(8),
                 Margin = new Padding(0, 8, 0, 0)
@@ -590,7 +617,7 @@ namespace StandaloneBaseball
             var button = new Button
             {
                 Text = text,
-                Width = 176,
+                Width = 216,
                 Height = 28,
                 Margin = new Padding(0, 3, 0, 0),
                 BackColor = SystemColors.Control,
@@ -1747,11 +1774,24 @@ namespace StandaloneBaseball
             }
 
             bool controllerConnected = _input.PollController();
-            if (controllerConnected != _controllerWasConnected)
+            string? detectedId = controllerConnected ? _input.ConnectedControllerId : null;
+            if (!string.Equals(detectedId, _connectedControllerId, StringComparison.Ordinal))
             {
-                _controllerWasConnected = controllerConnected;
+                bool wasConnected = !string.IsNullOrWhiteSpace(_connectedControllerId);
+                _connectedControllerId = detectedId;
                 if (controllerConnected)
-                    _state.ModeLabel = "Controller " + (_input.ConnectedControllerIndex.GetValueOrDefault() + 1);
+                {
+                    string name = _input.ConnectedControllerName ?? "Game controller";
+                    _state.ModeLabel = name + " connected";
+                    _controllerStatusLabel.Text = "Controller ready: " + name;
+                    _controllerStatusLabel.ForeColor = Color.LightGreen;
+                }
+                else if (wasConnected)
+                {
+                    _state.ModeLabel = "Controller disconnected - scanning";
+                    _controllerStatusLabel.Text = "Controller: disconnected; scanning...";
+                    _controllerStatusLabel.ForeColor = Color.LightSalmon;
+                }
             }
 
             foreach (var inputEvent in _input.DrainCommandEvents())
@@ -1762,6 +1802,7 @@ namespace StandaloneBaseball
             _activeInputSource = null;
 
             ApplyContinuousInput(CurrentFieldingInputSnapshot());
+            UpdateControlHint();
 
             if (_paused)
             {
@@ -4013,7 +4054,7 @@ namespace StandaloneBaseball
             if (_state.Phase == GameplayRenderingPhase.Ready ||
                 _state.Phase == GameplayRenderingPhase.DeadBall)
             {
-                if (_watchTick % 42 == 0)
+                if (_watchTick % CpuPitchDelayTicks == 0)
                 {
                     if (TryCpuStealBeforePitch())
                         return;
@@ -4036,7 +4077,7 @@ namespace StandaloneBaseball
         {
             _watchTick++;
             if ((_state.Phase == GameplayRenderingPhase.Ready || _state.Phase == GameplayRenderingPhase.DeadBall) &&
-                !HumanControlsFieldingTeam() && _watchTick % 42 == 0)
+                !HumanControlsFieldingTeam() && _watchTick % CpuPitchDelayTicks == 0)
             {
                 ChooseCpuStrategiesBeforePitch();
                 StartPitch();
@@ -4067,6 +4108,29 @@ namespace StandaloneBaseball
             return _activeInputSource.Value == GameplayInputSource.Keyboard
                 ? team.Id == _keyboardControlledTeamId
                 : team.Id == _controllerControlledTeamId;
+        }
+
+        private void UpdateControlHint()
+        {
+            string hint;
+            if (_gameComplete)
+                hint = "Game complete";
+            else if (_paused)
+                hint = "Paused - press P or use Pause / Resume";
+            else if (_mode == GameMode.PlayerVsPlayer && string.IsNullOrWhiteSpace(_input.ConnectedControllerId))
+                hint = "PLAYER 2: connect a controller; it will be acquired automatically";
+            else if (HumanControlsFieldingTeam() &&
+                (_state.Phase == GameplayRenderingPhase.Ready || _state.Phase == GameplayRenderingPhase.DeadBall))
+                hint = "PITCH: 1-7 select pitch | arrows/WASD aim | Space releases";
+            else if (HumanControlsBattingTeam() && _state.Phase == GameplayRenderingPhase.Pitching)
+                hint = "BAT: Space normal | Z contact | X power | time the incoming ball";
+            else if (HumanControlsFieldingTeam() && _state.Phase == GameplayRenderingPhase.BallInPlay)
+                hint = "FIELD: arrows/WASD move the highlighted fielder";
+            else
+                hint = "CPU action in progress";
+
+            _state.ControlHint = hint;
+            _controlHintLabel.Text = hint;
         }
 
         private GameplayInputSnapshot CurrentFieldingInputSnapshot()
@@ -4370,6 +4434,7 @@ namespace StandaloneBaseball
 
             MarkCurrentPitcherAppeared();
             CountPitchForCurrentPitcher();
+            _state.SeedFielders();
             _pickoffAttemptsThisPlateAppearance = 0;
             _state.Phase = GameplayRenderingPhase.Pitching;
             _state.ModeLabel = "Pitch";
@@ -4388,6 +4453,7 @@ namespace StandaloneBaseball
                 PrepareCpuPitch();
             }
             _ballProgress = 0f;
+            _state.AnimationProgress = 0f;
             _pitchBreakSign = _rng.Next(2) == 0 ? -1 : 1;
             _knuckleWobbleSeed = _rng.NextDouble() * Math.PI * 2.0;
             _state.BallPosition = _ballStart;
@@ -4448,7 +4514,8 @@ namespace StandaloneBaseball
 
         private void TickPitch()
         {
-            _ballProgress = Math.Min(1f, _ballProgress + 0.045f);
+            _ballProgress = Math.Min(1f, _ballProgress + PitchProgressPerTick);
+            _state.AnimationProgress = _ballProgress;
             _state.BallPosition = ApplyPitchMovement(Lerp(_ballStart, _ballTarget, EaseOut(_ballProgress)), _ballProgress);
             _state.BallTrail = Math.Max(0f, 1f - _ballProgress);
 
@@ -4578,7 +4645,9 @@ namespace StandaloneBaseball
                 _ballStart = _state.BallPosition;
                 _ballTarget = new PointF(_rng.Next(24, 77) / 100f, _rng.Next(24, 55) / 100f);
                 _ballProgress = 0f;
+                _state.AnimationProgress = 0f;
                 _state.BallTrail = 1f;
+                PickBallTargetFielder();
                 _pendingBattedBallResult = SharedGameEngine.ResolveBattedBall(_rng, new SharedBattedBallRequest
                 {
                     Batter = _state.CurrentBatterPlayer() ?? throw new InvalidOperationException("The batting team has no current batter."),
@@ -5384,9 +5453,17 @@ namespace StandaloneBaseball
 
         private void TickBallInPlay()
         {
-            _ballProgress = Math.Min(1f, _ballProgress + 0.028f);
+            _ballProgress = Math.Min(1f, _ballProgress + BallInPlayProgressPerTick);
+            _state.AnimationProgress = _ballProgress;
             _state.BallPosition = Lerp(_ballStart, _ballTarget, EaseOut(_ballProgress));
             _state.BallTrail = Math.Max(0f, 1f - _ballProgress);
+
+            if (!HumanControlsFieldingTeam() && _state.Fielders.Count > 0)
+            {
+                int activeIndex = Math.Clamp(_state.ActiveFielderIndex, 0, _state.Fielders.Count - 1);
+                GameplayRenderingPlayerMarker active = _state.Fielders[activeIndex];
+                active.Position = Lerp(active.Position, _ballTarget, 0.055f);
+            }
 
             if (_ballProgress < 1f)
                 return;

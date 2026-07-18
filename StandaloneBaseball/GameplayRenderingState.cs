@@ -90,6 +90,8 @@ namespace StandaloneBaseball
         public float BallHeight { get; set; }
         public bool BallVisible { get; set; } = true;
         public float BallTrail { get; set; }
+        public float AnimationProgress { get; set; }
+        public string ControlHint { get; set; } = "";
         public int ActiveFielderIndex { get; set; } = 1;
         public List<GameplayRenderingPlayerMarker> Fielders { get; } = new List<GameplayRenderingPlayerMarker>();
         public List<GameplayRenderingPlayerMarker> ReplayActors { get; } = new List<GameplayRenderingPlayerMarker>();

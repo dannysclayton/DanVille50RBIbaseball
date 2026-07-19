@@ -19,9 +19,13 @@ public sealed class ContextHelpServiceTests
 
             Button help = Assert.Single(form.Controls.OfType<Button>(),
                 button => button.Name == ContextHelpService.HelpButtonName);
+            Button mainMenu = Assert.Single(form.Controls.OfType<Button>(),
+                button => button.Name == ContextHelpService.MainMenuButtonName);
             Assert.Contains("Help", help.Text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Main Menu", mainMenu.Text, StringComparison.OrdinalIgnoreCase);
             Assert.True(help.Anchor.HasFlag(AnchorStyles.Top));
             Assert.True(help.Anchor.HasFlag(AnchorStyles.Right));
+            Assert.True(mainMenu.Right < help.Right);
         });
     }
 
@@ -73,6 +77,19 @@ public sealed class ContextHelpServiceTests
             Assert.Contains(items, item => item.ControlName == "Seasons");
             Assert.Contains(items, item => item.ControlName == "Replays");
             Assert.Contains(items, item => item.ControlName == "Settings");
+        });
+    }
+
+    [Fact]
+    public void MainMenuButton_IsNotAddedToMainMenuItself()
+    {
+        WinFormsTestHost.Run(() =>
+        {
+            using var form = new MainMenuForm();
+
+            Assert.True(ContextHelpService.Attach(form));
+            Assert.DoesNotContain(form.Controls.OfType<Button>(),
+                button => button.Name == ContextHelpService.MainMenuButtonName);
         });
     }
 }

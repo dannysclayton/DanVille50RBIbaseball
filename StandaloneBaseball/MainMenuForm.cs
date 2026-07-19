@@ -22,6 +22,7 @@ namespace StandaloneBaseball
         private DateTime _lastStickMove = DateTime.MinValue;
         private int _selectedIndex;
         private bool _launching;
+        private bool _returningFromChildScreens;
         private string? _controllerDeviceId;
         private string? _controllerDisplayName;
 
@@ -48,6 +49,11 @@ namespace StandaloneBaseball
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
+            StartMenuSession();
+        }
+
+        private void StartMenuSession()
+        {
             PresentationAudioCoordinator.StartExclusiveLoop(
                 _menuMusic,
                 () => _menuMusic.PlayLoop(LaunchSoundPlayer.FindMenuLoop()));
@@ -269,8 +275,52 @@ namespace StandaloneBaseball
                 loading.ShowDialog(this);
 
             var main = new MainForm(action);
-            main.FormClosed += (s, e) => Close();
+            main.FormClosed += (s, e) =>
+            {
+                if (!_returningFromChildScreens)
+                    Close();
+            };
             main.Show();
+        }
+
+        internal void ReturnFromChildScreens()
+        {
+            if (IsDisposed)
+                return;
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(ReturnFromChildScreens));
+                return;
+            }
+
+            _returningFromChildScreens = true;
+            Form[] children = Application.OpenForms.Cast<Form>()
+                .Where(form => !ReferenceEquals(form, this) && form is not LaunchForm)
+                .OrderBy(form => form is MainForm ? 1 : 0)
+                .ToArray();
+            foreach (Form child in children)
+            {
+                if (!child.IsDisposed)
+                    child.Close();
+            }
+
+            bool closeWasCanceled = Application.OpenForms.Cast<Form>()
+                .Any(form => !ReferenceEquals(form, this) && form is not LaunchForm && !form.IsDisposed);
+            if (closeWasCanceled)
+            {
+                _returningFromChildScreens = false;
+                return;
+            }
+
+            _launching = false;
+            _previousButtons = XInputButtons.None;
+            _currentButtons = XInputButtons.None;
+            _lastStickDirection = 0;
+            Show();
+            Activate();
+            StartMenuSession();
+            Invalidate();
+            _returningFromChildScreens = false;
         }
 
         private int HotspotIndexAt(Point point)

@@ -18,6 +18,7 @@ namespace StandaloneBaseball
     internal static class ContextHelpService
     {
         internal const string HelpButtonName = "ContextualMenuHelpButton";
+        internal const string MainMenuButtonName = "BackToMainMenuButton";
         private static readonly HashSet<Form> AttachedForms = new HashSet<Form>();
         private static bool _installed;
 
@@ -56,11 +57,44 @@ namespace StandaloneBaseball
             };
             help.FlatAppearance.BorderColor = Color.FromArgb(150, 195, 235);
 
+            Button? mainMenu = null;
+            if (ShouldAttachMainMenuButton(form))
+            {
+                mainMenu = new Button
+                {
+                    Name = MainMenuButtonName,
+                    Text = "Main Menu",
+                    Size = new Size(112, 32),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    BackColor = Color.FromArgb(110, 38, 48),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    AccessibleName = "Back to main menu",
+                    AccessibleDescription = "Closes the current menu screens and returns to the main menu.",
+                    TabStop = true
+                };
+                mainMenu.FlatAppearance.BorderColor = Color.FromArgb(225, 155, 165);
+                mainMenu.Click += (_, _) =>
+                {
+                    if (!MainMenuNavigationService.RequestReturn(form))
+                    {
+                        MessageBox.Show(form, "The main menu is not available from this window.",
+                            "Main Menu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                };
+                form.Controls.Add(mainMenu);
+            }
+
             void PositionButton()
             {
                 int menuOffset = form.MainMenuStrip?.Height ?? 0;
                 help.Location = new Point(Math.Max(8, form.ClientSize.Width - help.Width - 12), menuOffset + 8);
                 help.BringToFront();
+                if (mainMenu != null)
+                {
+                    mainMenu.Location = new Point(Math.Max(8, help.Left - mainMenu.Width - 8), menuOffset + 8);
+                    mainMenu.BringToFront();
+                }
             }
 
             help.Click += (_, _) =>
@@ -75,6 +109,8 @@ namespace StandaloneBaseball
             form.Shown += (_, _) => PositionButton();
             form.FormClosed += (_, _) => AttachedForms.Remove(form);
             new ToolTip().SetToolTip(help, "Explain every control on this screen");
+            if (mainMenu != null)
+                new ToolTip().SetToolTip(mainMenu, "Return to the main menu");
             AttachedForms.Add(form);
             return true;
         }
@@ -88,6 +124,19 @@ namespace StandaloneBaseball
                    form is not TimedImageInterstitialForm &&
                    form is not CutscenePlaybackForm &&
                    form is not NationalAnthemForm;
+        }
+
+        internal static bool ShouldAttachMainMenuButton(Form form)
+        {
+            return ShouldAttach(form) &&
+                   form is not MainMenuForm &&
+                   form is not GameplayForm &&
+                   form is not LiveSimulationForm &&
+                   form is not ReplayWatchForm &&
+                   form is not StartingLineupForm &&
+                   form is not ExtraInningRunnerPickerDialog &&
+                   form is not PostGameResultDialog &&
+                   form is not ChampionshipDialog;
         }
     }
 

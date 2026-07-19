@@ -3848,24 +3848,26 @@ namespace StandaloneBaseball
             {
                 Text = "Dan's RBI Baseball 2026 Settings",
                 StartPosition = FormStartPosition.CenterParent,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MinimizeBox = false,
-                MaximizeBox = false,
-                ClientSize = new Size(560, 294)
+                FormBorderStyle = FormBorderStyle.Sizable,
+                MinimizeBox = true,
+                MaximizeBox = true,
+                ClientSize = new Size(820, 660),
+                MinimumSize = new Size(700, 560)
             };
 
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                RowCount = 6,
+                RowCount = 7,
                 ColumnCount = 1,
                 Padding = new Padding(14)
             };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             dialog.Controls.Add(root);
 
@@ -3934,11 +3936,27 @@ namespace StandaloneBaseball
             row4.Controls.Add(rotateUniforms);
             root.Controls.Add(row4, 0, 4);
 
+            var controllerSettings = new ControllerSettingsControl();
+            root.Controls.Add(controllerSettings, 0, 5);
+
             var row5 = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
             var close = new Button { Text = "Close", AutoSize = true };
             close.Click += (s, e) => dialog.Close();
             row5.Controls.Add(close);
-            root.Controls.Add(row5, 0, 5);
+            root.Controls.Add(row5, 0, 6);
+
+            dialog.FormClosing += (s, e) =>
+            {
+                try
+                {
+                    controllerSettings.Save();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(dialog, "Controller settings could not be saved.\n\n" + ex.Message,
+                        "Controller Settings", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            };
 
             dialog.ShowDialog(this);
         }

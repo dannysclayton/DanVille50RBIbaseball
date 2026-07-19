@@ -301,7 +301,8 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 - In-progress games can be saved from inside the live game window.
 - Saved in-progress games can be resumed from the Game tab.
 - Keyboard input support.
-- XInput controller support.
+- Automatically detected XInput and native Windows joystick support with selectable PlayStation 3 (default), PlayStation 4 DualShock 4, and PlayStation 5 DualSense profiles.
+- Controller settings persist per Windows user and update prompts, Help content, system-button names, and native PS4/PS5 button translation.
 - Game actions can be mapped through keyboard/controller-style commands.
 - Pitching, batting, baserunning, throwing, strategies, mound visits, and pitcher changes are command-driven.
 

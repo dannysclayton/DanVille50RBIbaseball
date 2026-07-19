@@ -519,7 +519,7 @@ namespace StandaloneBaseball
             _controllerStatusLabel.Width = 216;
             _controllerStatusLabel.Height = 42;
             _controllerStatusLabel.ForeColor = Color.Silver;
-            _controllerStatusLabel.Text = "Controller: scanning (PlayStation 3 profile)";
+            _controllerStatusLabel.Text = "Controller: scanning (" + PlayStationControllerProfiles.Current.Name + " profile)";
             _controllerStatusLabel.TextAlign = ContentAlignment.MiddleLeft;
             gameControls.Controls.Add(_controllerStatusLabel);
 
@@ -1783,7 +1783,7 @@ namespace StandaloneBaseball
                 {
                     string name = _input.ConnectedControllerName ?? "Game controller";
                     _state.ModeLabel = name + " connected";
-                    _controllerStatusLabel.Text = "Controller ready: " + PlayStation3ControllerProfile.Status(name);
+                    _controllerStatusLabel.Text = "Controller ready: " + PlayStationControllerProfiles.Current.Status(name);
                     _controllerStatusLabel.ForeColor = Color.LightGreen;
                 }
                 else if (wasConnected)
@@ -4117,7 +4117,14 @@ namespace StandaloneBaseball
         private void UpdateControlHint()
         {
             string hint;
-            bool playStation3 = !string.IsNullOrWhiteSpace(_input.ConnectedControllerId);
+            bool playStationController = !string.IsNullOrWhiteSpace(_input.ConnectedControllerId);
+            PlayStationControllerDefinition profile = PlayStationControllerProfiles.Current;
+            string prefix = profile.Generation switch
+            {
+                PlayStationControllerGeneration.PlayStation4 => "PS4",
+                PlayStationControllerGeneration.PlayStation5 => "PS5",
+                _ => "PS3"
+            };
             if (_gameComplete)
                 hint = "Game complete";
             else if (_paused)
@@ -4126,20 +4133,20 @@ namespace StandaloneBaseball
                 hint = "PLAYER 2: connect a controller; it will be acquired automatically";
             else if (HumanControlsFieldingTeam() &&
                 (_state.Phase == GameplayRenderingPhase.Ready || _state.Phase == GameplayRenderingPhase.DeadBall))
-                hint = playStation3
-                    ? "PS3 PITCH: face buttons/D-pad/L3/R1/L2/R2 select | Left Stick aim | Cross throws"
+                hint = playStationController
+                    ? prefix + " PITCH: face buttons/D-pad/L3/R1/L2/R2 select | Left Stick aim | Cross throws"
                     : "PITCH: 1-7 select pitch | arrows/WASD aim | Space releases";
             else if (HumanControlsBattingTeam() && _state.Phase == GameplayRenderingPhase.Pitching)
-                hint = playStation3
-                    ? "PS3 BAT: Cross normal | Circle contact | Square power | Triangle bunt"
+                hint = playStationController
+                    ? prefix + " BAT: Cross normal | Circle contact | Square power | Triangle bunt"
                     : "BAT: Space normal | Z contact | X power | time the incoming ball";
             else if (HumanControlsFieldingTeam() && _state.Phase == GameplayRenderingPhase.BallInPlay)
-                hint = playStation3
-                    ? "PS3 FIELD: Left Stick move | Circle 1B | Triangle 2B | Square 3B | Cross home"
+                hint = playStationController
+                    ? prefix + " FIELD: Left Stick move | Circle 1B | Triangle 2B | Square 3B | Cross home"
                     : "FIELD: arrows/WASD move the highlighted fielder";
             else if (HumanControlsBattingTeam() && _state.Phase == GameplayRenderingPhase.BallInPlay)
-                hint = playStation3
-                    ? "PS3 RUN: L1 advance | R1 return | R2 stop"
+                hint = playStationController
+                    ? prefix + " RUN: L1 advance | R1 return | R2 stop"
                     : "RUN: E advances | Q returns";
             else
                 hint = "CPU action in progress";

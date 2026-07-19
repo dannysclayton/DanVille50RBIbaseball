@@ -17,7 +17,7 @@ For the complete feature inventory, see [Feautures.md](Feautures.md).
 - Saved `Assets\Data\schools.csv` source file for school-based team creation, with a menu option to update it from newer CSV versions.
 - 30-player varsity rosters with JV pool support, redshirts, medical tags, injured reserve, player avatars, sprites, uniforms, classifications, and progression.
 - Shared lineup, rotation, pitching, strategy, fielding, baserunning, injury, and game-resolution systems for user games and simulations.
-- Playable keyboard/controller games, Player vs CPU, Player vs Player, CPU vs CPU watch mode, and live season simulation.
+- Playable keyboard/controller games with persistent PlayStation 3, PlayStation 4, and PlayStation 5 profiles, plus Player vs CPU, Player vs Player, CPU vs CPU watch mode, and live season simulation. PlayStation 3 remains the default profile.
 - Configurable dynasty setup with game length, mercy rule, extra-inning rule, schedule structure, user-controlled teams, and named dynasties.
 - User full name is stored with the dynasty and used in the default save filename.
 - Conference, Region, and District structure with rankings, playoff qualification, seeding, series formats, championship handling, and badges.

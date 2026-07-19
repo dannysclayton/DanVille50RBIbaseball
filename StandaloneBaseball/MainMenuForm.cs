@@ -88,9 +88,10 @@ namespace StandaloneBaseball
 
         private void DrawControllerStatus(Graphics graphics)
         {
+            PlayStationControllerDefinition profile = PlayStationControllerProfiles.Current;
             string text = string.IsNullOrWhiteSpace(_controllerDisplayName)
-                ? "Controller: scanning - PlayStation 3 profile (keyboard ready)"
-                : "Controller ready: " + PlayStation3ControllerProfile.Status(_controllerDisplayName);
+                ? "Controller: scanning - " + profile.Name + " profile (keyboard ready)"
+                : "Controller ready: " + profile.Status(_controllerDisplayName);
             Rectangle bounds = new Rectangle(18, Math.Max(8, ClientSize.Height - 42), Math.Min(470, ClientSize.Width - 36), 28);
             using var fill = new SolidBrush(Color.FromArgb(205, 5, 16, 34));
             using var outline = new Pen(string.IsNullOrWhiteSpace(_controllerDisplayName)

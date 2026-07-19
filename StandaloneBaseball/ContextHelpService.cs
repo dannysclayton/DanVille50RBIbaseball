@@ -146,6 +146,7 @@ namespace StandaloneBaseball
         {
             if (form is MainMenuForm)
             {
+                PlayStationControllerDefinition profile = PlayStationControllerProfiles.Current;
                 items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Start Dynasty", Instructions = "Create a new named dynasty, choose its owner, league structure, teams, schedule, rules, user-controlled teams, and replay-export preferences." });
                 items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Continue Dynasty", Instructions = "Open an existing dynasty save. If its primary save is damaged, the backup-recovery system can offer available recovery copies." });
                 items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Game", Instructions = "Open the Game tab to select a scheduled matchup and play, watch, simulate, or resume it using the selected teams and rules." });
@@ -153,16 +154,17 @@ namespace StandaloneBaseball
                 items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Seasons", Instructions = "Open season and dynasty history, schedules, standings, polls, statistics, playoffs, awards, records, Hall of Fame information, and archives." });
                 items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Replays", Instructions = "Open the portable replay library to import, validate, organize, and watch replay files stored with the game." });
                 items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Settings", Instructions = "Configure asset-library locations, cutscene defaults, uniform rotation, audio levels, controller behavior, and other application preferences." });
-                items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Keyboard and controller navigation", Instructions = "Use the mouse, Up/Down or W/S, or the PlayStation 3 directional buttons/Left Stick to select an option. Use Enter, Space, Cross, or Start to open it." });
+                items.Add(new ContextHelpItem { Section = "Main Menu", ControlName = "Keyboard and controller navigation", Instructions = "Use the mouse, Up/Down or W/S, or the " + profile.Name + " directional buttons/Left Stick to select an option. Use Enter, Space, Cross, or " + profile.PauseButton + " to open it." });
             }
 
             if (form is GameplayForm)
             {
-                foreach (PlayStation3ControlBinding binding in PlayStation3ControllerProfile.Bindings)
+                PlayStationControllerDefinition profile = PlayStationControllerProfiles.Current;
+                foreach (PlayStationControlBinding binding in profile.Bindings)
                 {
                     items.Add(new ContextHelpItem
                     {
-                        Section = "PlayStation 3 - " + binding.Context,
+                        Section = profile.Name + " - " + binding.Context,
                         ControlName = binding.Control,
                         Instructions = binding.Action + "."
                     });
@@ -173,7 +175,10 @@ namespace StandaloneBaseball
         public static string Overview(Form form)
         {
             if (form is MainMenuForm)
-                return "Choose a destination with the mouse, keyboard arrows, or PlayStation 3 directional buttons/Left Stick. Press Enter, Space, Cross, or Start to open the selected item.";
+            {
+                PlayStationControllerDefinition profile = PlayStationControllerProfiles.Current;
+                return "Choose a destination with the mouse, keyboard arrows, or " + profile.Name + " directional buttons/Left Stick. Press Enter, Space, Cross, or " + profile.PauseButton + " to open the selected item.";
+            }
             if (form is MainForm)
                 return "Use the main tabs to manage teams, schedules, games, statistics, playoffs, awards, records, replays, and dynasty history. Changes that affect the dynasty are saved through the dynasty save system.";
             if (form is GameplayForm)

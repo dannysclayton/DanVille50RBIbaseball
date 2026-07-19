@@ -15,7 +15,7 @@ The complete feature inventory is in [`StandaloneBaseball/Feautures.md`](Standal
 - Playable, watched CPU-vs-CPU, and detailed simulated games using shared rules.
 - Dynasty creation, scheduling, playoffs, rankings, awards, records, and Hall of Fame tracking.
 - Team, roster, uniform, stadium, scoreboard, sprite, music, and cutscene editors.
-- Keyboard and XInput controller support with selectable team assignments.
+- Keyboard and automatically detected controllers with selectable PlayStation 3, PlayStation 4, and PlayStation 5 profiles; PlayStation 3 remains the default.
 - In-progress game saves, replay import/playback, portable user data, and dynasty backup recovery.
 - Complete team/player statistics with sortable views and native Excel/Word export.
 - complete editable features so the user can make any league, team, district...anything you desire! 

@@ -251,8 +251,8 @@ namespace StandaloneBaseball
 
         private static bool TriggerPressedThisPoll(byte current, byte previous)
         {
-            return current >= PlayStation3ControllerProfile.TriggerThreshold &&
-                   previous < PlayStation3ControllerProfile.TriggerThreshold;
+            return current >= PlayStationControllerProfiles.TriggerThreshold &&
+                   previous < PlayStationControllerProfiles.TriggerThreshold;
         }
     }
 }

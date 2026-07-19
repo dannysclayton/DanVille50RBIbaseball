@@ -26,7 +26,8 @@ namespace StandaloneBaseball
             string? currentDeviceId,
             out GameControllerReading reading)
         {
-            if (TryReadDeviceId(currentDeviceId, out reading))
+            PlayStationControllerGeneration profile = ControllerSettingsStore.Current.Profile;
+            if (TryReadDeviceId(currentDeviceId, profile, out reading))
                 return true;
 
             if (preferredXInputIndex >= 0 && TryReadXInput(preferredXInputIndex, out reading))
@@ -40,7 +41,7 @@ namespace StandaloneBaseball
 
             for (int index = 0; index < LegacyJoystickController.DeviceCount; index++)
             {
-                if (LegacyJoystickController.TryGetState(index, out XInputGamepadState state))
+                if (LegacyJoystickController.TryGetState(index, profile, out XInputGamepadState state))
                 {
                     reading = new GameControllerReading(
                         "winmm:" + index,
@@ -55,7 +56,10 @@ namespace StandaloneBaseball
             return false;
         }
 
-        private static bool TryReadDeviceId(string? deviceId, out GameControllerReading reading)
+        private static bool TryReadDeviceId(
+            string? deviceId,
+            PlayStationControllerGeneration profile,
+            out GameControllerReading reading)
         {
             if (string.IsNullOrWhiteSpace(deviceId))
             {
@@ -74,7 +78,7 @@ namespace StandaloneBaseball
                 return TryReadXInput(index, out reading);
 
             if (string.Equals(parts[0], "winmm", StringComparison.OrdinalIgnoreCase) &&
-                LegacyJoystickController.TryGetState(index, out XInputGamepadState state))
+                LegacyJoystickController.TryGetState(index, profile, out XInputGamepadState state))
             {
                 reading = new GameControllerReading(
                     "winmm:" + index,
@@ -131,6 +135,12 @@ namespace StandaloneBaseball
         }
 
         public static bool TryGetState(int controllerIndex, out XInputGamepadState state)
+            => TryGetState(controllerIndex, ControllerSettingsStore.Current.Profile, out state);
+
+        public static bool TryGetState(
+            int controllerIndex,
+            PlayStationControllerGeneration profile,
+            out XInputGamepadState state)
         {
             if (controllerIndex < 0 || controllerIndex >= DeviceCount)
             {
@@ -163,7 +173,9 @@ namespace StandaloneBaseball
                 return false;
             }
 
-            XInputButtons buttons = MapButtons(info.Buttons, info.Pov);
+            XInputButtons buttons = MapButtons(info.Buttons, info.Pov, profile);
+            byte leftTrigger = TriggerValue(info.Buttons, 0x0040, profile);
+            byte rightTrigger = TriggerValue(info.Buttons, 0x0080, profile);
             short x = NormalizeAxis(info.XPosition);
             short y = NormalizeAxis(info.YPosition);
             short rightX = NormalizeAxis(info.RPosition);
@@ -173,8 +185,8 @@ namespace StandaloneBaseball
                 controllerIndex,
                 packet,
                 buttons,
-                0,
-                0,
+                leftTrigger,
+                rightTrigger,
                 x,
                 InvertAxis(y),
                 rightX,
@@ -183,18 +195,42 @@ namespace StandaloneBaseball
         }
 
         internal static XInputButtons MapButtons(uint buttons, uint pov)
+            => MapButtons(buttons, pov, PlayStationControllerGeneration.PlayStation3);
+
+        internal static XInputButtons MapButtons(
+            uint buttons,
+            uint pov,
+            PlayStationControllerGeneration profile)
         {
             XInputButtons mapped = XInputButtons.None;
-            if ((buttons & 0x0001) != 0) mapped |= XInputButtons.A;
-            if ((buttons & 0x0002) != 0) mapped |= XInputButtons.B;
-            if ((buttons & 0x0004) != 0) mapped |= XInputButtons.X;
-            if ((buttons & 0x0008) != 0) mapped |= XInputButtons.Y;
-            if ((buttons & 0x0010) != 0) mapped |= XInputButtons.LeftShoulder;
-            if ((buttons & 0x0020) != 0) mapped |= XInputButtons.RightShoulder;
-            if ((buttons & 0x0040) != 0) mapped |= XInputButtons.Back;
-            if ((buttons & 0x0080) != 0) mapped |= XInputButtons.Start;
-            if ((buttons & 0x0100) != 0) mapped |= XInputButtons.LeftThumb;
-            if ((buttons & 0x0200) != 0) mapped |= XInputButtons.RightThumb;
+            bool modernPlayStation = profile == PlayStationControllerGeneration.PlayStation4 ||
+                                     profile == PlayStationControllerGeneration.PlayStation5;
+            if (modernPlayStation)
+            {
+                if ((buttons & 0x0001) != 0) mapped |= XInputButtons.X; // Square
+                if ((buttons & 0x0002) != 0) mapped |= XInputButtons.A; // Cross
+                if ((buttons & 0x0004) != 0) mapped |= XInputButtons.B; // Circle
+                if ((buttons & 0x0008) != 0) mapped |= XInputButtons.Y; // Triangle
+                if ((buttons & 0x0010) != 0) mapped |= XInputButtons.LeftShoulder;
+                if ((buttons & 0x0020) != 0) mapped |= XInputButtons.RightShoulder;
+                if ((buttons & 0x0100) != 0) mapped |= XInputButtons.Back; // SHARE / Create
+                if ((buttons & 0x0200) != 0) mapped |= XInputButtons.Start; // OPTIONS / Options
+                if ((buttons & 0x0400) != 0) mapped |= XInputButtons.LeftThumb;
+                if ((buttons & 0x0800) != 0) mapped |= XInputButtons.RightThumb;
+            }
+            else
+            {
+                if ((buttons & 0x0001) != 0) mapped |= XInputButtons.A;
+                if ((buttons & 0x0002) != 0) mapped |= XInputButtons.B;
+                if ((buttons & 0x0004) != 0) mapped |= XInputButtons.X;
+                if ((buttons & 0x0008) != 0) mapped |= XInputButtons.Y;
+                if ((buttons & 0x0010) != 0) mapped |= XInputButtons.LeftShoulder;
+                if ((buttons & 0x0020) != 0) mapped |= XInputButtons.RightShoulder;
+                if ((buttons & 0x0040) != 0) mapped |= XInputButtons.Back;
+                if ((buttons & 0x0080) != 0) mapped |= XInputButtons.Start;
+                if ((buttons & 0x0100) != 0) mapped |= XInputButtons.LeftThumb;
+                if ((buttons & 0x0200) != 0) mapped |= XInputButtons.RightThumb;
+            }
 
             if (pov != PovCentered)
             {
@@ -206,6 +242,16 @@ namespace StandaloneBaseball
             }
 
             return mapped;
+        }
+
+        internal static byte TriggerValue(
+            uint buttons,
+            uint mask,
+            PlayStationControllerGeneration profile)
+        {
+            bool modernPlayStation = profile == PlayStationControllerGeneration.PlayStation4 ||
+                                     profile == PlayStationControllerGeneration.PlayStation5;
+            return modernPlayStation && (buttons & mask) != 0 ? byte.MaxValue : (byte)0;
         }
 
         internal static short NormalizeAxis(uint value)

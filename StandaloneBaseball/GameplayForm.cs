@@ -15,6 +15,7 @@ namespace StandaloneBaseball
         private const int DefaultTickIntervalMilliseconds = 16;
         private const int CpuPitchDelayTicks = 105;
         private const float PitchProgressPerTick = 0.018f;
+        internal const float PitchReleaseProgress = 0.58f;
         private const float BallInPlayProgressPerTick = 0.009f;
         private const float ThrowProgressPerTick = 0.024f;
         private const float BaseHitSettleProgressPerTick = 0.0032f;
@@ -859,7 +860,7 @@ namespace StandaloneBaseball
             _homeMoundVisitsThisInning = 0;
             _awayCoachVisitBoostActive = false;
             _homeCoachVisitBoostActive = false;
-            _state.BallVisible = true;
+            _state.BallVisible = false;
             _state.BallTrail = 0f;
             _state.BallPosition = new PointF(0.5f, 0.62f);
             _state.BallHeight = 0f;
@@ -4770,7 +4771,7 @@ namespace StandaloneBaseball
             _defensiveStealCall = DefensiveStealCall.Normal;
             _state.BallVisible = true;
             _state.BallTrail = 1f;
-            _ballStart = new PointF(0.5f, 0.62f);
+            _ballStart = PitchReleasePoint(CurrentPitcher()?.Throws);
             if (HumanControlsFieldingTeam())
             {
                 _currentPitchType = SelectedPitchTypeForFieldingTeam();
@@ -4785,7 +4786,7 @@ namespace StandaloneBaseball
             _throwPresentationActive = false;
             _requestedThrowBase = null;
             _state.AnimationProgress = 0f;
-            _state.BallHeight = 0f;
+            _state.BallHeight = PitchBallHeight(0f);
             _pitchBreakSign = _rng.Next(2) == 0 ? -1 : 1;
             _knuckleWobbleSeed = _rng.NextDouble() * Math.PI * 2.0;
             _state.BallPosition = _ballStart;
@@ -4848,13 +4849,15 @@ namespace StandaloneBaseball
         {
             _ballProgress = Math.Min(1f, _ballProgress + PitchProgressPerTick);
             _state.AnimationProgress = _ballProgress;
-            const float releasePoint = 0.32f;
-            float flightProgress = Math.Clamp((_ballProgress - releasePoint) / (1f - releasePoint), 0f, 1f);
-            _state.BallVisible = _ballProgress >= releasePoint;
+            float flightProgress = Math.Clamp(
+                (_ballProgress - PitchReleaseProgress) / (1f - PitchReleaseProgress),
+                0f,
+                1f);
+            _state.BallVisible = _ballProgress >= PitchReleaseProgress;
             _state.BallPosition = ApplyPitchMovement(
                 Lerp(_ballStart, _ballTarget, PhysicalTravelProgress(flightProgress, 0.025f)),
                 flightProgress);
-            _state.BallHeight = BallHeightForFlight(GameplayBallFlightType.Pitch, flightProgress);
+            _state.BallHeight = PitchBallHeight(flightProgress);
             _state.BallTrail = _state.BallVisible ? Math.Max(0f, 1f - flightProgress) : 0f;
 
             if (_ballProgress >= 1f)
@@ -5173,6 +5176,20 @@ namespace StandaloneBaseball
                 GameplayBallFlightType.Pitch => gravityArc * 0.018f,
                 _ => 0f
             };
+        }
+
+        internal static PointF PitchReleasePoint(string? throws)
+        {
+            bool leftHanded = string.Equals(throws, "L", StringComparison.OrdinalIgnoreCase);
+            return new PointF(leftHanded ? 0.512f : 0.488f, 0.625f);
+        }
+
+        internal static float PitchBallHeight(float progress)
+        {
+            progress = Math.Clamp(progress, 0f, 1f);
+            float descent = 0.19f + (0.095f - 0.19f) * progress;
+            float carry = 4f * progress * (1f - progress) * 0.008f;
+            return descent + carry;
         }
 
         private static float GroundBallBounceHeight(float progress)

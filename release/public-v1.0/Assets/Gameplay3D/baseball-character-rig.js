@@ -54,6 +54,7 @@ function mirrored(rotations, axes = [false, true, true]) {
 function createAnimationClips() {
   const loop = [0, .5, 1];
   const action = [0, .16, .34, .52, .72, 1];
+  const pitch = [0, .12, .28, .44, .58, .70, .84, 1];
   const run = [0, .25, .5, .75, 1];
   const batterLeft = [[-.88, .05, 1.03], [-.96, .05, 1.08], [-.88, .05, 1.03]];
   const batterRight = [[-.62, -.08, -1.2], [-.68, -.08, -1.16], [-.62, -.08, -1.2]];
@@ -152,24 +153,32 @@ function createAnimationClips() {
       { bone: 'LowerLeg_R', times: run, values: [[.72,0,0],[.2,0,0],[.45,0,0],[.2,0,0],[.72,0,0]] }
     ]),
     clip('Pitch_R', 1, [
-      { kind: 'position', bone: 'Hips', times: action, values: [[0,REST_HIPS_Y,0],[0,2.38,.05],[0,2.45,.12],[0,2.2,.18],[0,2.15,.3],[0,REST_HIPS_Y,0]] },
-      { bone: 'Hips', times: action, values: [[0,0,0],[0,-.35,0],[0,-.62,0],[0,.18,0],[0,.55,0],[0,.28,0]] },
-      { bone: 'UpperLeg_L', times: action, values: [[0,0,0],[-1.35,0,0],[-1.55,0,0],[-.35,0,0],[.62,0,0],[.2,0,0]] },
-      { bone: 'LowerLeg_L', times: action, values: [[0,0,0],[1.12,0,0],[1.38,0,0],[.42,0,0],[.12,0,0],[0,0,0]] },
-      { bone: 'UpperLeg_R', times: action, values: [[0,0,0],[.08,0,0],[.16,0,0],[-.62,0,0],[-.38,0,0],[0,0,0]] },
-      { bone: 'UpperArm_R', times: action, values: [[0,0,-.12],[-.75,.18,-.8],[-1.72,.3,-1.0],[-2.25,-.3,.2],[-.55,-.85,.62],[0,0,-.1]] },
-      { bone: 'LowerArm_R', times: action, values: [[0,0,0],[-.65,0,.3],[-1.2,0,.65],[-.25,0,-.2],[.3,0,-.25],[0,0,0]] },
-      { bone: 'UpperArm_L', times: action, values: [[-.3,0,.3],[-.55,0,.75],[-.7,0,.95],[-.3,0,.4],[.15,0,-.25],[-.25,0,.2]] }
+      { kind: 'position', bone: 'Hips', times: pitch, values: [[0,REST_HIPS_Y,0],[0,2.34,.02],[0,2.43,.06],[0,2.38,.14],[0,2.2,.28],[0,2.12,.4],[0,2.15,.48],[0,2.26,.36]] },
+      { bone: 'Hips', times: pitch, values: [[0,0,0],[0,-.16,0],[0,-.52,0],[0,-.68,0],[0,.12,0],[0,.48,.04],[0,.62,.08],[0,.26,.02]] },
+      { bone: 'Spine', times: pitch, values: [[.05,0,0],[.08,-.1,0],[.12,-.28,0],[.16,-.42,0],[.28,.18,-.04],[.48,.42,-.08],[.62,.48,-.12],[.28,.18,-.04]] },
+      { bone: 'Chest', times: pitch, values: [[0,0,0],[.04,-.08,0],[.08,-.22,0],[.12,-.34,0],[.18,.2,-.04],[.32,.4,-.08],[.42,.48,-.12],[.18,.16,-.03]] },
+      { bone: 'UpperLeg_L', times: pitch, values: [[0,0,0],[-.35,0,0],[-1.38,0,0],[-1.58,0,0],[-.48,0,0],[.36,0,0],[.58,0,0],[.12,0,0]] },
+      { bone: 'LowerLeg_L', times: pitch, values: [[0,0,0],[.42,0,0],[1.2,0,0],[1.38,0,0],[.62,0,0],[.16,0,0],[.12,0,0],[0,0,0]] },
+      { bone: 'UpperLeg_R', times: pitch, values: [[0,0,0],[.12,0,0],[.18,0,0],[-.22,0,0],[-.64,0,0],[-.44,.08,0],[.38,.32,-.18],[.2,.16,-.08]] },
+      { bone: 'LowerLeg_R', times: pitch, values: [[0,0,0],[.08,0,0],[.16,0,0],[.3,0,0],[.48,0,0],[.68,0,0],[1.08,0,.14],[.46,0,.06]] },
+      { bone: 'UpperArm_R', times: pitch, values: [[-.2,.05,-.35],[-.48,.12,-.62],[-.92,.22,-1.0],[-1.72,.34,-1.18],[-2.18,-.28,-.08],[-1.12,-.78,.62],[-.42,-.94,.76],[-.12,-.18,.18]] },
+      { bone: 'LowerArm_R', times: pitch, values: [[-.72,0,.08],[-.82,0,.22],[-1.02,0,.48],[-1.28,0,.72],[-.34,0,-.16],[.18,0,-.3],[.42,0,-.22],[0,0,0]] },
+      { bone: 'UpperArm_L', times: pitch, values: [[-.28,0,.35],[-.42,0,.62],[-.58,0,.86],[-.74,0,1.02],[-.34,0,.42],[.1,0,-.28],[.18,0,-.42],[-.18,0,.16]] },
+      { bone: 'LowerArm_L', times: pitch, values: [[-.82,0,-.08],[-.92,0,-.14],[-1.04,0,-.18],[-1.12,0,-.16],[-.76,0,.04],[-.4,0,.1],[-.18,0,.08],[-.1,0,0]] }
     ]),
     clip('Pitch_L', 1, [
-      { kind: 'position', bone: 'Hips', times: action, values: [[0,REST_HIPS_Y,0],[0,2.38,.05],[0,2.45,.12],[0,2.2,.18],[0,2.15,.3],[0,REST_HIPS_Y,0]] },
-      { bone: 'Hips', times: action, values: mirrored([[0,0,0],[0,-.35,0],[0,-.62,0],[0,.18,0],[0,.55,0],[0,.28,0]]) },
-      { bone: 'UpperLeg_R', times: action, values: [[0,0,0],[-1.35,0,0],[-1.55,0,0],[-.35,0,0],[.62,0,0],[.2,0,0]] },
-      { bone: 'LowerLeg_R', times: action, values: [[0,0,0],[1.12,0,0],[1.38,0,0],[.42,0,0],[.12,0,0],[0,0,0]] },
-      { bone: 'UpperLeg_L', times: action, values: [[0,0,0],[.08,0,0],[.16,0,0],[-.62,0,0],[-.38,0,0],[0,0,0]] },
-      { bone: 'UpperArm_L', times: action, values: mirrored([[0,0,-.12],[-.75,.18,-.8],[-1.72,.3,-1.0],[-2.25,-.3,.2],[-.55,-.85,.62],[0,0,-.1]]) },
-      { bone: 'LowerArm_L', times: action, values: mirrored([[0,0,0],[-.65,0,.3],[-1.2,0,.65],[-.25,0,-.2],[.3,0,-.25],[0,0,0]]) },
-      { bone: 'UpperArm_R', times: action, values: mirrored([[-.3,0,.3],[-.55,0,.75],[-.7,0,.95],[-.3,0,.4],[.15,0,-.25],[-.25,0,.2]]) }
+      { kind: 'position', bone: 'Hips', times: pitch, values: [[0,REST_HIPS_Y,0],[0,2.34,.02],[0,2.43,.06],[0,2.38,.14],[0,2.2,.28],[0,2.12,.4],[0,2.15,.48],[0,2.26,.36]] },
+      { bone: 'Hips', times: pitch, values: mirrored([[0,0,0],[0,-.16,0],[0,-.52,0],[0,-.68,0],[0,.12,0],[0,.48,.04],[0,.62,.08],[0,.26,.02]]) },
+      { bone: 'Spine', times: pitch, values: mirrored([[.05,0,0],[.08,-.1,0],[.12,-.28,0],[.16,-.42,0],[.28,.18,-.04],[.48,.42,-.08],[.62,.48,-.12],[.28,.18,-.04]]) },
+      { bone: 'Chest', times: pitch, values: mirrored([[0,0,0],[.04,-.08,0],[.08,-.22,0],[.12,-.34,0],[.18,.2,-.04],[.32,.4,-.08],[.42,.48,-.12],[.18,.16,-.03]]) },
+      { bone: 'UpperLeg_R', times: pitch, values: [[0,0,0],[-.35,0,0],[-1.38,0,0],[-1.58,0,0],[-.48,0,0],[.36,0,0],[.58,0,0],[.12,0,0]] },
+      { bone: 'LowerLeg_R', times: pitch, values: [[0,0,0],[.42,0,0],[1.2,0,0],[1.38,0,0],[.62,0,0],[.16,0,0],[.12,0,0],[0,0,0]] },
+      { bone: 'UpperLeg_L', times: pitch, values: mirrored([[0,0,0],[.12,0,0],[.18,0,0],[-.22,0,0],[-.64,0,0],[-.44,.08,0],[.38,.32,-.18],[.2,.16,-.08]]) },
+      { bone: 'LowerLeg_L', times: pitch, values: mirrored([[0,0,0],[.08,0,0],[.16,0,0],[.3,0,0],[.48,0,0],[.68,0,0],[1.08,0,.14],[.46,0,.06]]) },
+      { bone: 'UpperArm_L', times: pitch, values: mirrored([[-.2,.05,-.35],[-.48,.12,-.62],[-.92,.22,-1.0],[-1.72,.34,-1.18],[-2.18,-.28,-.08],[-1.12,-.78,.62],[-.42,-.94,.76],[-.12,-.18,.18]]) },
+      { bone: 'LowerArm_L', times: pitch, values: mirrored([[-.72,0,.08],[-.82,0,.22],[-1.02,0,.48],[-1.28,0,.72],[-.34,0,-.16],[.18,0,-.3],[.42,0,-.22],[0,0,0]]) },
+      { bone: 'UpperArm_R', times: pitch, values: mirrored([[-.28,0,.35],[-.42,0,.62],[-.58,0,.86],[-.74,0,1.02],[-.34,0,.42],[.1,0,-.28],[.18,0,-.42],[-.18,0,.16]]) },
+      { bone: 'LowerArm_R', times: pitch, values: mirrored([[-.82,0,-.08],[-.92,0,-.14],[-1.04,0,-.18],[-1.12,0,-.16],[-.76,0,.04],[-.4,0,.1],[-.18,0,.08],[-.1,0,0]]) }
     ]),
     clip('Run', .72, [
       { kind: 'position', bone: 'Hips', times: run, values: [[0,2.27,0],[0,2.38,.05],[0,2.27,0],[0,2.38,.05],[0,2.27,0]] },
@@ -244,10 +253,10 @@ function createAnimationClips() {
       { bone: 'UpperLeg_R', times: loop, values: repeated([-.85,0,-.48], 3) },
       { bone: 'LowerLeg_L', times: loop, values: repeated([1.45,0,0], 3) },
       { bone: 'LowerLeg_R', times: loop, values: repeated([1.45,0,0], 3) },
-      { bone: 'UpperArm_L', times: loop, values: repeated([-.55,0,.42], 3) },
-      { bone: 'LowerArm_L', times: loop, values: repeated([-.55,0,-.55], 3) },
-      { bone: 'UpperArm_R', times: loop, values: repeated([-.55,0,-.42], 3) },
-      { bone: 'LowerArm_R', times: loop, values: repeated([-.55,0,.55], 3) }
+      { bone: 'UpperArm_L', times: loop, values: repeated([-.78,0,1.05], 3) },
+      { bone: 'LowerArm_L', times: loop, values: repeated([-1.02,0,-.46], 3) },
+      { bone: 'UpperArm_R', times: loop, values: repeated([-.78,0,-1.05], 3) },
+      { bone: 'LowerArm_R', times: loop, values: repeated([-1.02,0,.46], 3) }
     ]),
     clip('CatcherReceive', .58, [
       { kind: 'position', bone: 'Hips', times: action, values: [[0,1.55,0],[0,1.52,.01],[0,1.48,.02],[0,1.5,.01],[0,1.53,0],[0,1.55,0]] },
@@ -272,7 +281,11 @@ function createAnimationClips() {
       { bone: 'UpperLeg_L', times: loop, values: repeated([-.62,0,.32], 3) },
       { bone: 'UpperLeg_R', times: loop, values: repeated([-.62,0,-.32], 3) },
       { bone: 'LowerLeg_L', times: loop, values: repeated([1.05,0,0], 3) },
-      { bone: 'LowerLeg_R', times: loop, values: repeated([1.05,0,0], 3) }
+      { bone: 'LowerLeg_R', times: loop, values: repeated([1.05,0,0], 3) },
+      { bone: 'UpperArm_L', times: loop, values: repeated([-.42,0,1.2], 3) },
+      { bone: 'LowerArm_L', times: loop, values: repeated([-.72,0,-.32], 3) },
+      { bone: 'UpperArm_R', times: loop, values: repeated([-.42,0,-1.2], 3) },
+      { bone: 'LowerArm_R', times: loop, values: repeated([-.72,0,.32], 3) }
     ]),
     clip('UmpireStrikeout', 1.1, [
       { kind: 'position', bone: 'Hips', times: action, values: [[0,1.72,0],[0,1.78,.02],[0,1.98,.04],[0,2.15,.08],[0,2.22,.08],[0,2.24,.06]] },
@@ -735,7 +748,9 @@ class MeshyBaseballCharacterRig {
     const leather = material('#8a4b23', .88);
     const wood = material('#c99b54', .58);
     const battingGlove = material(options.secondary || '#f2f2f2', .86);
-    this.materials.push(leather, wood, battingGlove);
+    const baseball = material('#f5f3e9', .6);
+    const throwingHand = material('#c98f6c', .82);
+    this.materials.push(leather, wood, battingGlove, baseball, throwingHand);
 
     this.glove = shadow(new THREE.Mesh(new THREE.SphereGeometry(.135, 14, 10), leather));
     this.glove.scale.set(1.42, 1.0, .68);
@@ -743,6 +758,19 @@ class MeshyBaseballCharacterRig {
     const gloveBone = this.throwHand === 'L' ? this.bones.RightHand : this.bones.LeftHand;
     gloveBone?.add(this.glove);
     this.ownedGeometries.push(this.glove.geometry);
+
+    const throwingHandBone = this.throwHand === 'L' ? this.bones.LeftHand : this.bones.RightHand;
+    this.pitchGripBall = shadow(new THREE.Mesh(new THREE.SphereGeometry(.085, 16, 12), baseball));
+    this.pitchGripBall.position.set(0, -.025, .02);
+    throwingHandBone?.add(this.pitchGripBall);
+    this.ownedGeometries.push(this.pitchGripBall.geometry);
+    this.pitchGripCover = shadow(new THREE.Mesh(new THREE.SphereGeometry(.092, 14, 10), throwingHand));
+    this.pitchGripCover.scale.set(1.0, 1.28, .92);
+    this.pitchGripCover.position.set(0, -.028, .014);
+    throwingHandBone?.add(this.pitchGripCover);
+    this.ownedGeometries.push(this.pitchGripCover.geometry);
+    this.pitchGripBall.visible = false;
+    this.pitchGripCover.visible = false;
     this.fieldingGloveCover = shadow(new THREE.Mesh(new THREE.SphereGeometry(.24, 16, 12), leather));
     this.fieldingGloveCover.scale.set(1.5, 1.08, .72);
     this.object.add(this.fieldingGloveCover);
@@ -778,13 +806,9 @@ class MeshyBaseballCharacterRig {
       }
     }
     for (const [name, source] of meshyAssets.animations) {
-      if (name === 'Pitch_R' || name === 'Run' || name === 'Walk') {
+      if (name === 'Run' || name === 'Walk') {
         this.actions.set(name, this.mixer.clipAction(sanitizeImportedClip(source)));
         this.actionSources.set(name, 'meshy');
-      }
-      if (name === 'Pitch_R') {
-        this.actions.set('Pitch_L', this.mixer.clipAction(mirrorImportedClip(source, 'Pitch_L')));
-        this.actionSources.set('Pitch_L', 'meshy-mirrored');
       }
     }
 
@@ -831,6 +855,10 @@ class MeshyBaseballCharacterRig {
     } else {
       this.currentAction.paused = false;
     }
+    const pitching = name === 'Pitch_R' || name === 'Pitch_L';
+    const pitchTime = normalizedTime == null ? 0 : normalizedTime;
+    this.pitchGripBall.visible = pitching && pitchTime < .58;
+    this.pitchGripCover.visible = pitching && pitchTime < .72;
   }
 
   update(deltaSeconds) {

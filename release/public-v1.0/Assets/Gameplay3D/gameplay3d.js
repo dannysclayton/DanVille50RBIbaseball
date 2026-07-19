@@ -393,9 +393,9 @@ function updateActors(deltaSeconds) {
     batter.object.position.set(left ? 3.65 : -3.65, 0, 16.55);
     batter.object.rotation.y = left ? -1.08 : 1.08;
     batter.setEquipment('Batter');
-    const swinging = !steal && state.phase === 'Pitching' && progress >= .38;
+    const swinging = !steal && state.phase === 'Pitching' && progress >= .68;
     batter.play(swinging ? `Swing_${left ? 'L' : 'R'}` : `BatterIdle_${left ? 'L' : 'R'}`,
-      swinging ? (progress - .38) / .62 : null, !swinging);
+      swinging ? (progress - .68) / .32 : null, !swinging);
   }
   batter.object.scale.setScalar(1.1);
   batter.update(deltaSeconds);
@@ -434,7 +434,7 @@ function updateActors(deltaSeconds) {
     player.object.position.copy(point);
     player.object.visible = true;
     player.object.rotation.y = marker.label === 'C' ? Math.PI : 0;
-    player.object.scale.setScalar(active ? 1.06 : 1);
+    player.object.scale.setScalar(marker.label === 'C' ? .86 : active ? 1.06 : 1);
     if (strikeout && marker.label === 'P') {
       player.play('PitcherStrikeoutReset', strikeoutProgress, false);
     } else if (strikeout && marker.label === 'C') {

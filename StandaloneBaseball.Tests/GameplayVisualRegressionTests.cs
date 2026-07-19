@@ -272,6 +272,9 @@ public sealed class GameplayVisualRegressionTests
         Assert.Contains("BatterIdle_R", rig);
         Assert.Contains("Swing_L", rig);
         Assert.Contains("Pitch_R", rig);
+        Assert.Contains("const pitch = [0, .12, .28, .44, .58, .70, .84, 1]", rig);
+        Assert.Contains("this.pitchGripBall.visible = pitching && pitchTime < .58", rig);
+        Assert.DoesNotContain("name === 'Pitch_R' || name === 'Run'", rig);
         Assert.Contains("CatcherCrouch", rig);
         Assert.Contains("CatcherPopThrow_R", rig);
         Assert.Contains("CatcherReceive", rig);
@@ -299,7 +302,8 @@ public sealed class GameplayVisualRegressionTests
         Assert.Contains("player_run.glb", rig);
         Assert.Contains("player_walk.glb", rig);
         Assert.Contains("mirrorImportedClip", rig);
-        Assert.Contains("meshy-mirrored", rig);
+        Assert.Contains("this.actionSources.set(name, 'procedural')", rig);
+        Assert.Contains("marker.label === 'C' ? .86", script);
         Assert.Contains("applyFieldPreset", script);
         Assert.Contains("applyScoreboard", script);
         Assert.Contains("scoreboardBackground", script);
@@ -382,6 +386,21 @@ public sealed class GameplayVisualRegressionTests
         Assert.True(thrown > ground);
         Assert.InRange(GameplayForm.BallHeightForFlight(GameplayBallFlightType.FlyBall, 0f), 0f, 0.0001f);
         Assert.InRange(GameplayForm.BallHeightForFlight(GameplayBallFlightType.FlyBall, 1f), 0f, 0.0001f);
+    }
+
+    [Fact]
+    public void PitchFlight_StartsAtThrowingHandAndDescendsToCatcher()
+    {
+        PointF rightHanded = GameplayForm.PitchReleasePoint("R");
+        PointF leftHanded = GameplayForm.PitchReleasePoint("L");
+
+        Assert.True(rightHanded.X < 0.5f);
+        Assert.True(leftHanded.X > 0.5f);
+        Assert.Equal(rightHanded.Y, leftHanded.Y);
+        Assert.Equal(0.58f, GameplayForm.PitchReleaseProgress);
+        Assert.InRange(GameplayForm.PitchBallHeight(0f), 0.189f, 0.191f);
+        Assert.InRange(GameplayForm.PitchBallHeight(1f), 0.094f, 0.096f);
+        Assert.True(GameplayForm.PitchBallHeight(0.5f) > GameplayForm.PitchBallHeight(1f));
     }
 
     [Fact]

@@ -196,6 +196,7 @@ let state = {
   },
   batterBats: 'R', pitcherThrows: 'R', batterTargetBase: 0, bases: [false, false, false],
   ball: { x: .5, y: .62, z: 0, visible: true },
+  throwTarget: { x: .5, y: .58 },
   fielders: [
     { label: 'C', x: .5, y: .90 }, { label: 'P', x: .5, y: .62 },
     { label: '1B', x: .68, y: .70 }, { label: '2B', x: .59, y: .62 },
@@ -283,6 +284,26 @@ function pathToBase(targetBase, progress) {
   return baseWorld[segment].clone().lerp(baseWorld[segment + 1], distance - segment);
 }
 
+function quadraticPoint(start, control, end, progress) {
+  const t = clamp01(progress);
+  const inverse = 1 - t;
+  return start.clone().multiplyScalar(inverse * inverse)
+    .add(control.clone().multiplyScalar(2 * inverse * t))
+    .add(end.clone().multiplyScalar(t * t));
+}
+
+function pathToDouble(progress) {
+  const p = clamp01(progress);
+  const firstApproach = baseWorld[0].clone().lerp(baseWorld[1], .86);
+  const firstExit = baseWorld[1].clone().lerp(baseWorld[2], .18);
+  const outsideTurn = baseWorld[1].clone().add(new THREE.Vector3(4.2, 0, -.7));
+  if (p < .39)
+    return baseWorld[0].clone().lerp(firstApproach, smoothStep(p / .39));
+  if (p < .60)
+    return quadraticPoint(firstApproach, outsideTurn, firstExit, smoothStep((p - .39) / .21));
+  return firstExit.clone().lerp(baseWorld[2], smoothStep((p - .60) / .40));
+}
+
 function faceDirection(object, from, to) {
   object.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
 }
@@ -302,8 +323,14 @@ function updateActors(deltaSeconds) {
   const progress = Number(state.animationProgress || 0);
   const steal = state.presentationKind === 'Steal';
   const stealProgress = clamp01(state.presentationProgress);
+  const stealCaught = steal && !state.presentationSuccessful;
   const strikeout = state.presentationKind === 'Strikeout';
   const strikeoutProgress = clamp01(state.presentationProgress);
+  const baseHit = state.presentationKind === 'BaseHit';
+  const baseHitProgress = clamp01(state.presentationProgress);
+  const centerChargeSingle = baseHit &&
+    String(state.presentationVariant || '').toLowerCase() === 'centerchargesingle';
+  const standingDouble = baseHit && Number(state.presentationTargetBase || 0) === 2;
   const swingingStrikeout = String(state.presentationVariant || '').toLowerCase() === 'swinging';
   if (strikeout) {
     const exitProgress = smoothStep((strikeoutProgress - .55) / .45);
@@ -318,6 +345,42 @@ function updateActors(deltaSeconds) {
       batter.setEquipment('Batter');
       batter.play(swingingStrikeout ? `StrikeoutReaction_${left ? 'L' : 'R'}` : 'CalledStrikeReaction',
         clamp01(strikeoutProgress / .58), false);
+    }
+  } else if (baseHit) {
+    if (baseHitProgress < .14) {
+      batter.object.position.set(left ? 3.65 : -3.65, 0, 16.55);
+      batter.object.rotation.y = left ? -1.08 : 1.08;
+      batter.setEquipment('Batter');
+      batter.play(`Swing_${left ? 'L' : 'R'}`, clamp01(baseHitProgress / .14), false);
+    } else {
+      const runProgress = smoothStep((baseHitProgress - .12) /
+        (standingDouble ? .76 : centerChargeSingle ? .67 : .64));
+      const runPoint = standingDouble ? pathToDouble(runProgress) : pathToBase(1, runProgress);
+      const ahead = standingDouble
+        ? pathToDouble(Math.min(1, runProgress + .025))
+        : pathToBase(1, Math.min(1, runProgress + .035));
+      const firstLine = baseWorld[1].clone().sub(baseWorld[0]).normalize();
+      const overrunStart = centerChargeSingle ? .79 : .76;
+      const overrunReturn = centerChargeSingle ? .91 : .91;
+      const overrun = smoothStep((baseHitProgress - overrunStart) / .12) *
+        (1 - smoothStep((baseHitProgress - overrunReturn) / .08));
+      if (!standingDouble)
+        runPoint.addScaledVector(firstLine, overrun * (centerChargeSingle ? 3.8 : 3.2));
+      batter.object.position.copy(runPoint);
+      const doubleFinishDirection = baseWorld[2].clone().sub(baseWorld[1]).normalize();
+      const facingTarget = standingDouble && runProgress >= .985
+        ? baseWorld[2].clone().add(doubleFinishDirection)
+        : overrun > .02 ? baseWorld[1].clone().add(firstLine) : ahead;
+      faceDirection(batter.object, runPoint, facingTarget);
+      batter.setEquipment('Runner');
+      if (standingDouble && baseHitProgress >= .86)
+        batter.play('RunnerStopAtSecond', clamp01((baseHitProgress - .86) / .14), false);
+      else if (baseHitProgress < (centerChargeSingle ? .80 : .77) || standingDouble)
+        batter.play('Run');
+      else
+        batter.play('RunnerBrakeAtFirst',
+          clamp01((baseHitProgress - (centerChargeSingle ? .80 : .77)) / (centerChargeSingle ? .20 : .23)),
+          false);
     }
   } else if (!steal && state.phase === 'BallInPlay' && Number(state.batterTargetBase || 0) > 0) {
     const runPoint = pathToBase(state.batterTargetBase, progress);
@@ -337,14 +400,36 @@ function updateActors(deltaSeconds) {
   batter.object.scale.setScalar(1.1);
   batter.update(deltaSeconds);
 
+  const relayTarget = worldPoint(state.throwTarget?.x ?? .5, state.throwTarget?.y ?? .58, 0);
+  let relayReceiverIndex = -1;
+  if (baseHit && (state.cameraPhase === 'ThrowToBase' || state.cameraPhase === 'ClosePlay')) {
+    let bestDistance = Number.POSITIVE_INFINITY;
+    state.fielders.forEach((marker, index) => {
+      if (index === state.activeFielderIndex || marker.label === 'C' || marker.label === 'P') return;
+      const distance = worldPoint(marker.x, marker.y, 0).distanceToSquared(relayTarget);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        relayReceiverIndex = index;
+      }
+    });
+  }
+
   state.fielders.forEach((marker, i) => {
     if (!fielders[i]) return;
     const player = fielders[i];
     let point = worldPoint(marker.x, marker.y, 0);
     const active = i === state.activeFielderIndex;
     if (steal && active && marker.label !== 'C' && marker.label !== 'P') {
+      const fromBase = THREE.MathUtils.clamp(Number(state.presentationFromBase || 1), 1, 3);
       const targetBase = THREE.MathUtils.clamp(Number(state.presentationTargetBase || 2), 1, 4);
-      point = point.clone().lerp(baseWorld[targetBase], smoothStep((stealProgress - .55) / .28));
+      const incoming = baseWorld[targetBase].clone().sub(baseWorld[fromBase]).normalize();
+      const tagSide = new THREE.Vector3(-incoming.z, 0, incoming.x).multiplyScalar(.82);
+      const tagSpot = baseWorld[targetBase].clone().add(tagSide);
+      point = point.clone().lerp(tagSpot, smoothStep((stealProgress - .55) / .28));
+    }
+    if (baseHit && i === relayReceiverIndex) {
+      const relayMoveProgress = state.cameraPhase === 'ClosePlay' ? 1 : progress;
+      point = point.clone().lerp(relayTarget, smoothStep(relayMoveProgress * 1.18));
     }
     player.object.position.copy(point);
     player.object.visible = true;
@@ -372,9 +457,30 @@ function updateActors(deltaSeconds) {
           clamp01((stealProgress - .43) / .31), false);
       }
     } else if (steal && active) {
-      player.play(stealProgress >= .81 ? 'SweepTag' : 'FieldReady',
-        stealProgress >= .81 ? clamp01((stealProgress - .81) / .19) : null,
-        stealProgress < .81);
+      if (stealProgress < .70) {
+        player.play('FieldReady');
+      } else if (stealProgress < .83) {
+        player.play('Catch', clamp01((stealProgress - .70) / .13), false);
+      } else {
+        player.play('SweepTag', clamp01((stealProgress - .83) / .17), false);
+      }
+    } else if (baseHit && active && state.cameraPhase === 'BallTracking') {
+      const pickupStart = standingDouble ? .55 : centerChargeSingle ? .58 : .53;
+      if (baseHitProgress < pickupStart)
+        player.play('Run');
+      else
+        player.play('FielderPickup', clamp01((baseHitProgress - pickupStart) / (.70 - pickupStart)), false);
+      faceDirection(player.object, point, worldPoint(state.ball.x, state.ball.y, 0));
+    } else if (baseHit && active && state.cameraPhase === 'ThrowToBase') {
+      const throws = String(marker.throws || 'R').toUpperCase();
+      player.play(`Throw_${throws === 'L' ? 'L' : 'R'}`, progress, false);
+      faceDirection(player.object, point, relayTarget);
+    } else if (baseHit && i === relayReceiverIndex) {
+      player.play('RelayReceive', state.cameraPhase === 'ClosePlay' ? 1 : progress, false);
+      faceDirection(player.object, point, worldPoint(state.ball.x, state.ball.y, 0));
+    } else if (centerChargeSingle && baseHit && active && state.cameraPhase === 'ClosePlay') {
+      player.play('FieldReady');
+      faceDirection(player.object, point, relayTarget);
     } else if (marker.label === 'P' && state.phase === 'Pitching') {
       const throws = String(marker.throws || state.pitcherThrows || 'R').toUpperCase();
       player.play(`Pitch_${throws === 'L' ? 'L' : 'R'}`, progress, false);
@@ -394,13 +500,39 @@ function updateActors(deltaSeconds) {
     player.update(deltaSeconds);
   });
 
-  umpire.object.visible = !steal && state.cameraPhase === 'AtBat' && state.phase !== 'BallInPlay';
+  const safeCallStart = standingDouble ? .92 : centerChargeSingle ? .90 : .82;
+  const baseHitSafeCall = baseHit && baseHitProgress >= safeCallStart;
+  const stealCallStart = stealCaught ? .88 : .90;
+  const stealBaseCall = steal && stealProgress >= stealCallStart;
+  umpire.object.visible = baseHitSafeCall || stealBaseCall ||
+    (!steal && state.cameraPhase === 'AtBat' && state.phase !== 'BallInPlay');
   if (umpire.object.visible) {
-    umpire.object.position.set(.9, 0, 24.1);
-    umpire.object.rotation.y = Math.PI;
+    if (baseHitSafeCall) {
+      const callBase = standingDouble ? baseWorld[2] : baseWorld[1];
+      const previousBase = standingDouble ? baseWorld[1] : baseWorld[0];
+      const towardRunner = previousBase.clone().sub(callBase).normalize();
+      const umpireSide = new THREE.Vector3(towardRunner.z, 0, -towardRunner.x).multiplyScalar(5.2);
+      umpire.object.position.copy(callBase).addScaledVector(towardRunner, 4.6).add(umpireSide);
+      faceDirection(umpire.object, umpire.object.position, callBase);
+    } else if (stealBaseCall) {
+      const fromBase = THREE.MathUtils.clamp(Number(state.presentationFromBase || 1), 1, 3);
+      const targetBase = THREE.MathUtils.clamp(Number(state.presentationTargetBase || 2), 1, 4);
+      const towardRunner = baseWorld[fromBase].clone().sub(baseWorld[targetBase]).normalize();
+      const umpireSide = new THREE.Vector3(towardRunner.z, 0, -towardRunner.x).multiplyScalar(5.2);
+      umpire.object.position.copy(baseWorld[targetBase]).addScaledVector(towardRunner, 4.8).add(umpireSide);
+      faceDirection(umpire.object, umpire.object.position, baseWorld[targetBase]);
+    } else {
+      umpire.object.position.set(.9, 0, 24.1);
+      umpire.object.rotation.y = Math.PI;
+    }
     umpire.object.scale.setScalar(.8);
     umpire.setEquipment('Runner');
-    if (strikeout)
+    if (baseHitSafeCall)
+      umpire.play('UmpireSafe', clamp01((baseHitProgress - safeCallStart) / (1 - safeCallStart)), false);
+    else if (stealBaseCall)
+      umpire.play(stealCaught ? 'UmpireOut' : 'UmpireSafe',
+        clamp01((stealProgress - stealCallStart) / (1 - stealCallStart)), false);
+    else if (strikeout)
       umpire.play('UmpireStrikeout', clamp01((strikeoutProgress - .12) / .72), false);
     else
       umpire.play('UmpireSet');
@@ -418,8 +550,11 @@ function updateActors(deltaSeconds) {
       const fromBase = THREE.MathUtils.clamp(Number(state.presentationFromBase || 1), 1, 3);
       const targetBase = THREE.MathUtils.clamp(Number(state.presentationTargetBase || fromBase + 1), 1, 4);
       const runProgress = smoothStep((stealProgress - .06) / .78);
-      position = baseWorld[fromBase].clone().lerp(baseWorld[targetBase], runProgress);
-      next = baseWorld[targetBase];
+      const caughtStealingStop = stealCaught
+        ? baseWorld[targetBase].clone().lerp(baseWorld[fromBase], .065)
+        : baseWorld[targetBase];
+      position = baseWorld[fromBase].clone().lerp(caughtStealingStop, runProgress);
+      next = caughtStealingStop;
       if (runProgress < .78)
         runner.play('Run');
       else {
@@ -448,20 +583,72 @@ function updateCamera() {
   const bp = worldPoint(state.ball.x, state.ball.y, state.ball.z);
   const steal = state.presentationKind === 'Steal';
   const stealProgress = clamp01(state.presentationProgress);
+  const stealCaught = steal && !state.presentationSuccessful;
   const strikeout = state.presentationKind === 'Strikeout';
+  const baseHit = state.presentationKind === 'BaseHit';
+  const baseHitProgress = clamp01(state.presentationProgress);
+  const centerChargeSingle = baseHit &&
+    String(state.presentationVariant || '').toLowerCase() === 'centerchargesingle';
+  const standingDouble = baseHit && Number(state.presentationTargetBase || 0) === 2;
   if (strikeout) {
     desiredCamera.set(0, 5.55, 34.5);
     desiredTarget.set(0, 2.8, -6.5);
+  } else if (baseHit && baseHitProgress < .14) {
+    desiredCamera.set(0, 6.15, 31.5);
+    desiredTarget.set(0, 3.0, -8.5);
+  } else if (centerChargeSingle && baseHitProgress < .70) {
+    desiredTarget.copy(bp);
+    desiredCamera.set(bp.x * .34, Math.max(10.5, bp.y + 11.5), bp.z + 24);
+  } else if (standingDouble && baseHitProgress >= .52 && baseHitProgress < .70) {
+    const runProgress = smoothStep((baseHitProgress - .12) / .76);
+    const runnerPoint = pathToDouble(runProgress);
+    desiredTarget.copy(runnerPoint).lerp(bp, .14);
+    desiredTarget.y = 1.45;
+    desiredCamera.set(runnerPoint.x + 17, 8.2, runnerPoint.z + 24);
+  } else if (baseHit && baseHitProgress < .70) {
+    desiredTarget.copy(bp);
+    desiredCamera.set(bp.x * .42, Math.max(13, bp.y + 15), bp.z + 31);
+  } else if (centerChargeSingle && baseHitProgress < .90) {
+    desiredTarget.copy(bp);
+    desiredCamera.set(bp.x * .46 + 4.5, Math.max(9.5, bp.y + 10), bp.z + 21);
+  } else if (baseHit && baseHitProgress < .90) {
+    desiredTarget.copy(bp);
+    desiredCamera.set(bp.x * .58 + 7, Math.max(10, bp.y + 11), bp.z + 23);
+  } else if (standingDouble) {
+    const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+    const narrowViewPullback = Math.max(1, 1.25 / Math.max(.65, aspect));
+    desiredTarget.copy(baseWorld[2]);
+    desiredTarget.y = 1.45;
+    desiredCamera.set(
+      baseWorld[2].x + 12 * narrowViewPullback,
+      7.2 + 1.2 * (narrowViewPullback - 1),
+      baseWorld[2].z - 20 * narrowViewPullback);
+  } else if (baseHit) {
+    const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+    const narrowViewPullback = Math.max(1, 1.25 / Math.max(.65, aspect));
+    desiredTarget.copy(baseWorld[1]);
+    desiredTarget.y = 1.6;
+    desiredCamera.set(
+      baseWorld[1].x + 12 * narrowViewPullback,
+      6.8 + 1.1 * (narrowViewPullback - 1),
+      baseWorld[1].z + 16 * narrowViewPullback);
   } else if (steal && stealProgress < .60) {
     desiredCamera.set(0, 7.1, 34);
     desiredTarget.set(0, 3.0, -6);
-  } else if (steal && stealProgress < .84) {
+  } else if (steal && stealProgress < (stealCaught ? .78 : .84)) {
     desiredTarget.copy(bp);
     desiredCamera.set(bp.x * .22, 9, bp.z + 37);
   } else if (steal) {
-    desiredTarget.copy(baseWorld[THREE.MathUtils.clamp(Number(state.presentationTargetBase || 2), 1, 4)]);
-    desiredTarget.y = 1.1;
-    desiredCamera.set(desiredTarget.x + 12, 7.2, desiredTarget.z - 18);
+    const fromBase = THREE.MathUtils.clamp(Number(state.presentationFromBase || 1), 1, 3);
+    const targetBase = THREE.MathUtils.clamp(Number(state.presentationTargetBase || 2), 1, 4);
+    const towardRunner = baseWorld[fromBase].clone().sub(baseWorld[targetBase]).normalize();
+    const cameraSide = new THREE.Vector3(towardRunner.z, 0, -towardRunner.x);
+    desiredTarget.copy(baseWorld[targetBase]);
+    desiredTarget.y = stealCaught ? 1.35 : 1.1;
+    desiredCamera.copy(baseWorld[targetBase])
+      .addScaledVector(towardRunner, stealCaught ? 27 : 30)
+      .addScaledVector(cameraSide, stealCaught ? 7.5 : 9);
+    desiredCamera.y = stealCaught ? 8.2 : 8.8;
   } else if (state.cameraPhase === 'BallTracking') {
     desiredTarget.copy(bp);
     desiredCamera.set(bp.x * .55, Math.max(18, bp.y + 18), bp.z + 34);
@@ -575,6 +762,7 @@ window.DRBI = {
       ...state,
       ...next,
       ball: { ...state.ball, ...(next.ball || {}) },
+      throwTarget: { ...state.throwTarget, ...(next.throwTarget || {}) },
       field: { ...state.field, ...(next.field || {}) },
       scoreboard: { ...state.scoreboard, ...scoreboardUpdate }
     };
@@ -601,6 +789,8 @@ window.DRBI = {
       camera: camera.position.toArray(), target: cameraTarget.toArray(),
       batter: characterBounds(batter),
       fielders: fielders.map(characterBounds),
+      runners: runners.map(characterBounds),
+      umpire: characterBounds(umpire),
       sceneChildren: scene.children.length
     };
   }

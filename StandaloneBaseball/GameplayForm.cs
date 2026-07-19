@@ -15,8 +15,9 @@ namespace StandaloneBaseball
         private const int DefaultTickIntervalMilliseconds = 16;
         private const int CpuPitchDelayTicks = 105;
         private const float PitchProgressPerTick = 0.018f;
-        private const float BallInPlayProgressPerTick = 0.014f;
-        private const float ThrowProgressPerTick = 0.036f;
+        private const float BallInPlayProgressPerTick = 0.009f;
+        private const float ThrowProgressPerTick = 0.024f;
+        private const float BaseHitSettleProgressPerTick = 0.0032f;
         private const float StealPresentationProgressPerTick = 0.0052f;
         private const float StrikeoutPresentationProgressPerTick = 0.0067f;
         private const int SeniorStarterPitchLimit = 100;
@@ -162,6 +163,7 @@ namespace StandaloneBaseball
         private PointF _throwTarget;
         private float _throwProgress;
         private bool _throwPresentationActive;
+        private bool _baseHitSettleActive;
         private PendingStealPresentation? _pendingStealPresentation;
         private PendingStrikeoutPresentation? _pendingStrikeoutPresentation;
         private GameplayBase? _requestedThrowBase;
@@ -865,6 +867,10 @@ namespace StandaloneBaseball
             _state.CameraPhase = GameplayCameraPhase.AtBat;
             _state.CameraFocus = new PointF(0.5f, 0.70f);
             _throwPresentationActive = false;
+            _baseHitSettleActive = false;
+            _state.PresentationKind = GameplayPresentationKind.None;
+            _state.PresentationProgress = 0f;
+            _state.PresentationVariant = "";
             _state.Phase = GameplayRenderingPhase.Ready;
             _state.ModeLabel = "Ready";
             _surface.SetState(_state);
@@ -2617,6 +2623,13 @@ namespace StandaloneBaseball
                 _state.BallHeight = 0f;
                 _state.BallVisible = progress < 0.92f;
                 _state.BallTrail = 0f;
+                string targetLabel = BaseLabel(pending.Candidate.TargetBase);
+                if (pending.Result.RunnerOut)
+                    _state.ModeLabel = progress < 0.90f
+                        ? "Tag play at " + targetLabel
+                        : "Caught stealing at " + targetLabel + ": " + pending.Candidate.Runner.Name;
+                else
+                    _state.ModeLabel = "Safe at " + targetLabel + ": " + pending.Candidate.Runner.Name;
             }
 
             _state.CameraFocus = _state.BallPosition;
@@ -4992,16 +5005,39 @@ namespace StandaloneBaseball
                 });
                 _state.BallFlightType = SelectBallFlight(_pendingBattedBallResult.Value, swingType);
                 _state.BatterTargetBase = BasesForVisualResult(_pendingBattedBallResult.Value);
+                if (_pendingBattedBallResult.Value == SharedBattedBallResultType.Single ||
+                    _pendingBattedBallResult.Value == SharedBattedBallResultType.Double)
+                {
+                    int targetBase = BasesForVisualResult(_pendingBattedBallResult.Value);
+                    _state.PresentationKind = GameplayPresentationKind.BaseHit;
+                    _state.PresentationProgress = 0f;
+                    _state.PresentationFromBase = 0;
+                    _state.PresentationTargetBase = targetBase;
+                    _state.PresentationSuccessful = true;
+                    _state.PresentationVariant = targetBase == 2 ? "StandingDouble" : "Single";
+                }
+                else
+                {
+                    _state.PresentationKind = GameplayPresentationKind.None;
+                    _state.PresentationProgress = 0f;
+                    _state.PresentationVariant = "";
+                }
                 _ballTarget = SelectBattedBallTarget(_pendingBattedBallResult.Value, _state.BallFlightType);
                 _ballProgress = 0f;
                 _throwPresentationActive = false;
+                _baseHitSettleActive = false;
                 _requestedThrowBase = null;
                 _state.AnimationProgress = 0f;
                 _state.BallHeight = 0f;
                 _state.BallTrail = 1f;
                 _state.CameraPhase = GameplayCameraPhase.BallTracking;
                 _state.CameraFocus = _ballTarget;
-                PickBallTargetFielder();
+                GameplayRenderingPlayerMarker? visualFielder = PickBallTargetFielder();
+                if (_pendingBattedBallResult.Value == SharedBattedBallResultType.Single &&
+                    IsCenterChargeSinglePresentation(_state.BallFlightType, _ballTarget, visualFielder))
+                {
+                    _state.PresentationVariant = "CenterChargeSingle";
+                }
                 return;
             }
 
@@ -5098,6 +5134,18 @@ namespace StandaloneBaseball
             }
 
             return new PointF(Math.Clamp(x, 0.08f, 0.92f), Math.Clamp(y, 0.08f, 0.76f));
+        }
+
+        internal static bool IsCenterChargeSinglePresentation(
+            GameplayBallFlightType flight,
+            PointF ballTarget,
+            GameplayRenderingPlayerMarker? fielder)
+        {
+            return flight == GameplayBallFlightType.GroundBall &&
+                string.Equals(fielder?.Label, "CF", StringComparison.OrdinalIgnoreCase) &&
+                Math.Abs(ballTarget.X - 0.5f) <= 0.18f &&
+                ballTarget.Y >= 0.32f &&
+                ballTarget.Y <= 0.55f;
         }
 
         private static int BasesForVisualResult(SharedBattedBallResultType result)
@@ -5952,31 +6000,78 @@ namespace StandaloneBaseball
 
         private void TickBallInPlay()
         {
-            if (_throwPresentationActive)
+            bool centerChargeSingle = string.Equals(
+                _state.PresentationVariant,
+                "CenterChargeSingle",
+                StringComparison.OrdinalIgnoreCase);
+            bool standingDouble = _state.PresentationKind == GameplayPresentationKind.BaseHit &&
+                _state.PresentationTargetBase == 2;
+            if (_baseHitSettleActive)
             {
-                _throwProgress = Math.Min(1f, _throwProgress + ThrowProgressPerTick);
+                _state.PresentationProgress = Math.Min(1f, _state.PresentationProgress + BaseHitSettleProgressPerTick);
+                _state.AnimationProgress = Math.Min(1f, (_state.PresentationProgress - 0.90f) / 0.10f);
+                _state.BallVisible = false;
+                _state.BallTrail = 0f;
+                _state.CameraPhase = GameplayCameraPhase.ClosePlay;
+                _state.CameraFocus = WorldPositionForBaseNumber(_state.PresentationTargetBase);
+                if (standingDouble)
+                    _state.ModeLabel = "Standing double at second";
+                if (_state.PresentationProgress < 1f)
+                    return;
+                _baseHitSettleActive = false;
+            }
+            else if (_throwPresentationActive)
+            {
+                float throwIncrement = centerChargeSingle ? 0.015f : ThrowProgressPerTick;
+                _throwProgress = Math.Min(1f, _throwProgress + throwIncrement);
+                _state.AnimationProgress = _throwProgress;
+                if (_state.PresentationKind == GameplayPresentationKind.BaseHit)
+                    _state.PresentationProgress = 0.70f + _throwProgress * 0.20f;
                 _state.BallPosition = Lerp(_throwStart, _throwTarget, PhysicalTravelProgress(_throwProgress, 0.04f));
                 _state.BallHeight = BallHeightForFlight(GameplayBallFlightType.Throw, _throwProgress);
                 _state.BallTrail = Math.Max(0.08f, 0.72f * (1f - _throwProgress));
                 _state.CameraFocus = _state.BallPosition;
+                if (standingDouble)
+                    _state.ModeLabel = "Return throw to second";
                 if (_throwProgress < 1f)
                     return;
                 _throwPresentationActive = false;
+                if (_state.PresentationKind == GameplayPresentationKind.BaseHit)
+                {
+                    _baseHitSettleActive = true;
+                    _state.PresentationProgress = 0.90f;
+                    _state.AnimationProgress = 0f;
+                    _state.BallVisible = false;
+                    return;
+                }
             }
             else
             {
-                _ballProgress = Math.Min(1f, _ballProgress + BallInPlayProgressPerTick);
+                float ballIncrement = centerChargeSingle ? 0.006f : BallInPlayProgressPerTick;
+                _ballProgress = Math.Min(1f, _ballProgress + ballIncrement);
                 _state.AnimationProgress = _ballProgress;
+                if (_state.PresentationKind == GameplayPresentationKind.BaseHit)
+                    _state.PresentationProgress = _ballProgress * 0.70f;
                 _state.BallPosition = Lerp(_ballStart, _ballTarget, PhysicalTravelProgress(_ballProgress, 0.08f));
                 _state.BallHeight = BallHeightForFlight(_state.BallFlightType, _ballProgress);
                 _state.BallTrail = Math.Max(0f, 1f - _ballProgress);
                 _state.CameraFocus = _state.BallPosition;
+                if (standingDouble)
+                {
+                    _state.ModeLabel = _ballProgress < 0.42f
+                        ? "Driven into the gap"
+                        : _ballProgress < 0.78f
+                            ? "Outfielder tracking the ball"
+                            : "Runner rounding first";
+                }
 
                 if (_state.Fielders.Count > 0)
                 {
                     int activeIndex = Math.Clamp(_state.ActiveFielderIndex, 0, _state.Fielders.Count - 1);
                     GameplayRenderingPlayerMarker active = _state.Fielders[activeIndex];
-                    float pursuit = HumanControlsFieldingTeam() ? 0.022f : 0.055f;
+                    float pursuit = HumanControlsFieldingTeam()
+                        ? (centerChargeSingle ? 0.032f : 0.022f)
+                        : (centerChargeSingle ? 0.075f : 0.055f);
                     active.Position = Lerp(active.Position, _ballTarget, pursuit);
                 }
 
@@ -6024,7 +6119,7 @@ namespace StandaloneBaseball
                     ResolveContestedBaseOut(contestedPlay, fielder, batter, pitcher, hitType);
                     StopBallInPlayMusic();
                     _state.Phase = GameplayRenderingPhase.DeadBall;
-                    _state.BallTrail = 0f;
+                    CompleteBallPresentationVisuals();
                     ResetStrategyCalls();
                     PlayAfterPitchRunnerPromptIfNeeded();
                     return;
@@ -6118,6 +6213,14 @@ namespace StandaloneBaseball
             _state.CameraPhase = GameplayCameraPhase.ClosePlay;
             _state.CameraFocus = _state.BallPosition;
             _throwPresentationActive = false;
+            _baseHitSettleActive = false;
+            _state.PresentationKind = GameplayPresentationKind.None;
+            _state.PresentationProgress = 0f;
+            _state.PresentationFromBase = 0;
+            _state.PresentationTargetBase = 0;
+            _state.PresentationSuccessful = false;
+            _state.PresentationVariant = "";
+            _state.BallVisible = true;
             _requestedThrowBase = null;
             _userAdvanceRunners = false;
             _userHoldRunners = false;
@@ -6165,7 +6268,7 @@ namespace StandaloneBaseball
             return result switch
             {
                 SharedBattedBallResultType.Single => GameplayBase.Second,
-                SharedBattedBallResultType.Double => GameplayBase.Third,
+                SharedBattedBallResultType.Double => GameplayBase.Second,
                 SharedBattedBallResultType.Triple => GameplayBase.Home,
                 _ => GameplayBase.First
             };

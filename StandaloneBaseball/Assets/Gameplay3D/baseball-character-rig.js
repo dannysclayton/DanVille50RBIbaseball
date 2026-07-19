@@ -5,9 +5,10 @@ import { clone as cloneSkeleton } from './addons/utils/SkeletonUtils.js';
 export const BASEBALL_ANIMATION_NAMES = Object.freeze([
   'FieldReady', 'BatterIdle_R', 'BatterIdle_L', 'Swing_R', 'Swing_L',
   'StrikeoutReaction_R', 'StrikeoutReaction_L', 'CalledStrikeReaction', 'StrikeoutWalkAway',
-  'Pitch_R', 'Pitch_L', 'Run', 'Throw_R', 'Throw_L', 'Catch',
+  'Pitch_R', 'Pitch_L', 'Run', 'RunnerBrakeAtFirst', 'RunnerStopAtSecond', 'Throw_R', 'Throw_L', 'Catch',
+  'FielderPickup', 'RelayReceive',
   'CatcherCrouch', 'CatcherReceive', 'CatcherPopThrow_R', 'CatcherPopThrow_L',
-  'PitcherStrikeoutReset', 'UmpireSet', 'UmpireStrikeout',
+  'PitcherStrikeoutReset', 'UmpireSet', 'UmpireStrikeout', 'UmpireSafe', 'UmpireOut',
   'SweepTag', 'RunnerLead', 'Slide', 'Celebrate'
 ]);
 
@@ -182,6 +183,28 @@ function createAnimationClips() {
       { bone: 'LowerArm_L', times: run, values: repeated([-1.0,0,0], 5) },
       { bone: 'LowerArm_R', times: run, values: repeated([-1.0,0,0], 5) }
     ]),
+    clip('RunnerBrakeAtFirst', .78, [
+      { kind: 'position', bone: 'Hips', times: action, values: [[0,2.27,0],[0,2.2,.06],[0,2.12,.12],[0,2.08,.08],[0,2.16,.02],[0,2.22,0]] },
+      { bone: 'Spine', times: action, values: [[.22,0,0],[.34,.08,0],[.45,.16,0],[.38,.1,0],[.24,.04,0],[.16,0,0]] },
+      { bone: 'UpperLeg_L', times: action, values: [[-.9,0,0],[-.35,0,.08],[.38,0,.16],[.22,0,.12],[-.12,0,.06],[-.2,0,0]] },
+      { bone: 'UpperLeg_R', times: action, values: [[.9,0,0],[.28,0,-.08],[-.45,0,-.16],[-.25,0,-.12],[-.08,0,-.06],[-.2,0,0]] },
+      { bone: 'LowerLeg_L', times: action, values: [[.65,0,0],[.38,0,0],[.72,0,0],[.52,0,0],[.34,0,0],[.28,0,0]] },
+      { bone: 'LowerLeg_R', times: action, values: [[.95,0,0],[.45,0,0],[.68,0,0],[.48,0,0],[.32,0,0],[.28,0,0]] },
+      { bone: 'UpperArm_L', times: action, values: [[.65,0,.1],[.25,0,.55],[-.25,0,.85],[-.18,0,.72],[-.12,0,.55],[-.15,0,.4]] },
+      { bone: 'UpperArm_R', times: action, values: [[-.65,0,-.1],[-.25,0,-.55],[.25,0,-.85],[.18,0,-.72],[.12,0,-.55],[.15,0,-.4]] }
+    ]),
+    clip('RunnerStopAtSecond', .88, [
+      { kind: 'position', bone: 'Hips', times: action, values: [[0,2.3,0],[0,2.24,.08],[0,2.12,.16],[0,2.08,.1],[0,2.18,.03],[0,2.24,0]] },
+      { bone: 'Spine', times: action, values: [[.24,0,0],[.32,.06,0],[.42,.12,0],[.34,.08,0],[.18,.03,0],[.08,0,0]] },
+      { bone: 'UpperLeg_L', times: action, values: [[-.82,0,0],[-.28,0,.08],[.48,0,.18],[.18,0,.08],[-.12,0,.03],[-.18,0,0]] },
+      { bone: 'UpperLeg_R', times: action, values: [[.82,0,0],[.3,0,-.08],[-.5,0,-.18],[-.2,0,-.08],[-.1,0,-.03],[-.18,0,0]] },
+      { bone: 'LowerLeg_L', times: action, values: [[.7,0,0],[.42,0,0],[.78,0,0],[.5,0,0],[.3,0,0],[.22,0,0]] },
+      { bone: 'LowerLeg_R', times: action, values: [[.92,0,0],[.48,0,0],[.7,0,0],[.44,0,0],[.28,0,0],[.22,0,0]] },
+      { bone: 'UpperArm_L', times: action, values: [[.58,0,.1],[.38,0,.14],[.18,0,.18],[.12,0,.12],[.16,0,.08],[.18,0,.06]] },
+      { bone: 'UpperArm_R', times: action, values: [[-.58,0,-.1],[-.38,0,-.14],[-.18,0,-.18],[-.12,0,-.12],[-.16,0,-.08],[-.18,0,-.06]] },
+      { bone: 'LowerArm_L', times: action, values: [[-1,0,0],[-.82,0,0],[-.62,0,0],[-.48,0,0],[-.36,0,0],[-.28,0,0]] },
+      { bone: 'LowerArm_R', times: action, values: [[-1,0,0],[-.82,0,0],[-.62,0,0],[-.48,0,0],[-.36,0,0],[-.28,0,0]] }
+    ]),
     clip('Throw_R', .8, [
       { bone: 'Hips', times: action, values: [[0,0,0],[0,-.25,0],[0,-.45,0],[0,.25,0],[0,.55,0],[0,.25,0]] },
       { bone: 'UpperArm_R', times: action, values: [[0,0,-.1],[-.8,.2,-.75],[-1.7,.25,-1.0],[-2.25,-.2,.1],[-.5,-.8,.65],[0,0,-.1]] },
@@ -198,6 +221,21 @@ function createAnimationClips() {
       { bone: 'UpperArm_L', times: action, values: [[-.25,0,.2],[-.75,0,.48],[-1.25,0,.72],[-1.4,0,.82],[-.95,0,.55],[-.35,0,.25]] },
       { bone: 'LowerArm_L', times: action, values: [[0,0,0],[-.3,0,-.3],[-.5,0,-.65],[-.42,0,-.8],[-.25,0,-.45],[0,0,0]] },
       { bone: 'UpperArm_R', times: action, values: [[-.2,0,-.2],[-.62,0,-.36],[-1.0,0,-.5],[-1.12,0,-.58],[-.72,0,-.4],[-.25,0,-.2]] }
+    ]),
+    clip('FielderPickup', .78, [
+      { kind: 'position', bone: 'Hips', times: action, values: [[0,REST_HIPS_Y,0],[0,2.05,.08],[0,1.62,.22],[0,1.38,.35],[0,1.68,.24],[0,2.08,.08]] },
+      { bone: 'Spine', times: action, values: [[.08,0,0],[.28,0,0],[.62,.08,0],[.82,.12,0],[.55,.08,0],[.18,0,0]] },
+      { bone: 'UpperLeg_L', times: action, values: [[-.18,0,.04],[-.35,0,.08],[-.62,0,.14],[-.78,0,.2],[-.52,0,.14],[-.24,0,.06]] },
+      { bone: 'UpperLeg_R', times: action, values: [[-.18,0,-.04],[-.32,0,-.08],[-.58,0,-.14],[-.72,0,-.2],[-.48,0,-.14],[-.22,0,-.06]] },
+      { bone: 'UpperArm_L', times: action, values: [[-.18,0,1.18],[-.48,0,.86],[-.92,.08,.48],[-1.35,.18,.12],[-1.05,.1,.38],[-.42,0,.82]] },
+      { bone: 'LowerArm_L', times: action, values: [[-.2,0,-.16],[-.42,0,-.28],[-.68,0,-.42],[-.92,0,-.55],[-.7,0,-.42],[-.32,0,-.24]] }
+    ]),
+    clip('RelayReceive', .68, [
+      { kind: 'position', bone: 'Hips', times: action, values: [[0,REST_HIPS_Y,0],[0,2.2,.03],[0,2.08,.08],[0,2.02,.12],[0,2.1,.08],[0,2.18,.03]] },
+      { bone: 'Spine', times: action, values: [[.08,0,0],[.15,0,0],[.28,0,0],[.34,0,0],[.24,0,0],[.12,0,0]] },
+      { bone: 'UpperArm_L', times: action, values: [[-.18,0,1.18],[-.52,0,.92],[-.92,0,.58],[-1.2,0,.34],[-.9,0,.56],[-.38,0,.92]] },
+      { bone: 'LowerArm_L', times: action, values: [[-.2,0,-.16],[-.38,0,-.32],[-.55,0,-.52],[-.68,0,-.68],[-.5,0,-.48],[-.28,0,-.26]] },
+      { bone: 'UpperArm_R', times: action, values: [[-.18,0,-1.18],[-.42,0,-.82],[-.72,0,-.55],[-.9,0,-.38],[-.68,0,-.58],[-.32,0,-.92]] }
     ]),
     clip('CatcherCrouch', 1.2, [
       { kind: 'position', bone: 'Hips', times: loop, values: [[0,1.55,0],[0,1.5,.02],[0,1.55,0]] },
@@ -246,6 +284,19 @@ function createAnimationClips() {
       { bone: 'UpperArm_R', times: action, values: [[-.25,0,-.35],[-.65,0,-.62],[-1.05,0,-.82],[-1.55,0,-1.0],[-1.95,0,-.72],[-1.75,0,-.5]] },
       { bone: 'LowerArm_R', times: action, values: [[-.2,0,.2],[-.55,0,.38],[-.9,0,.48],[-1.25,0,.35],[-1.42,0,.12],[-1.25,0,.08]] },
       { bone: 'UpperArm_L', times: action, values: [[-.25,0,.35],[-.35,0,.42],[-.42,0,.5],[-.35,0,.55],[-.28,0,.6],[-.22,0,.65]] }
+    ]),
+    clip('UmpireSafe', .9, [
+      { kind: 'position', bone: 'Hips', times: action, values: [[0,REST_HIPS_Y,0],[0,2.28,.02],[0,2.24,.04],[0,2.22,.04],[0,2.26,.02],[0,REST_HIPS_Y,0]] },
+      { bone: 'Spine', times: action, values: [[.08,0,0],[.12,0,0],[.18,0,0],[.16,0,0],[.1,0,0],[.08,0,0]] },
+      { bone: 'UpperArm_L', times: action, values: [[-.2,0,.4],[-.58,0,.78],[-1.05,0,1.28],[-1.28,0,1.48],[-.82,0,1.02],[-.24,0,.46]] },
+      { bone: 'UpperArm_R', times: action, values: [[-.2,0,-.4],[-.58,0,-.78],[-1.05,0,-1.28],[-1.28,0,-1.48],[-.82,0,-1.02],[-.24,0,-.46]] }
+    ]),
+    clip('UmpireOut', .92, [
+      { kind: 'position', bone: 'Hips', times: action, values: [[0,REST_HIPS_Y,0],[0,2.25,.02],[0,2.3,.04],[0,2.34,.04],[0,2.32,.02],[0,2.3,0]] },
+      { bone: 'Spine', times: action, values: [[.08,0,0],[.12,-.08,0],[.18,-.18,0],[.14,-.24,0],[.1,-.2,0],[.08,-.16,0]] },
+      { bone: 'UpperArm_R', times: action, values: [[-.2,0,-.4],[-.55,0,-.62],[-1.05,0,-.82],[-1.48,0,-.92],[-1.55,0,-.82],[-1.42,0,-.72]] },
+      { bone: 'LowerArm_R', times: action, values: [[-.15,0,.18],[-.48,0,.35],[-.92,0,.42],[-1.35,0,.28],[-1.48,0,.12],[-1.38,0,.08]] },
+      { bone: 'UpperArm_L', times: action, values: [[-.2,0,.4],[-.28,0,.46],[-.34,0,.52],[-.32,0,.5],[-.28,0,.46],[-.24,0,.42]] }
     ]),
     clip('CatcherPopThrow_R', .92, [
       { kind: 'position', bone: 'Hips', times: action, values: [[0,1.55,0],[0,1.62,.03],[0,1.95,.1],[0,2.2,.2],[0,2.26,.3],[0,2.3,.34]] },

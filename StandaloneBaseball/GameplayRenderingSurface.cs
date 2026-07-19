@@ -232,6 +232,11 @@ namespace StandaloneBaseball
                     z = state.BallHeight,
                     visible = state.BallVisible
                 },
+                throwTarget = new
+                {
+                    x = state.ThrowTarget.X,
+                    y = state.ThrowTarget.Y
+                },
                 activeFielderIndex = state.ActiveFielderIndex,
                 fielders = state.Fielders.Select(marker => new
                 {

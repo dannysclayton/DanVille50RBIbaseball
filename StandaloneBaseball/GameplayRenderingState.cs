@@ -37,6 +37,7 @@ namespace StandaloneBaseball
     internal enum GameplayPresentationKind
     {
         None,
+        BaseHit,
         Steal,
         Strikeout
     }

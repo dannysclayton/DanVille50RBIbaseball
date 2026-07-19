@@ -140,6 +140,118 @@ public sealed class GameplayVisualRegressionTests
     }
 
     [Fact]
+    public void ThreeDimensionalPayload_DescribesCaughtStealingAtSecond()
+    {
+        var state = new GameplayRenderingGameState();
+        state.SetTeams(
+            TeamWithRoster("Away", Color.Blue, Color.White, 91),
+            TeamWithRoster("Home", Color.Red, Color.Gold, 92));
+        state.Phase = GameplayRenderingPhase.DeadBall;
+        state.CameraPhase = GameplayCameraPhase.ClosePlay;
+        state.PresentationKind = GameplayPresentationKind.Steal;
+        state.PresentationProgress = 0.94f;
+        state.PresentationFromBase = 1;
+        state.PresentationTargetBase = 2;
+        state.PresentationSuccessful = false;
+        state.PresentationVariant = "Out";
+
+        using JsonDocument document = JsonDocument.Parse(
+            GameplayRenderingSurface.BuildThreeDimensionalStatePayload(state));
+        JsonElement root = document.RootElement;
+
+        Assert.Equal("Steal", root.GetProperty("presentationKind").GetString());
+        Assert.Equal(1, root.GetProperty("presentationFromBase").GetInt32());
+        Assert.Equal(2, root.GetProperty("presentationTargetBase").GetInt32());
+        Assert.False(root.GetProperty("presentationSuccessful").GetBoolean());
+        Assert.Equal("Out", root.GetProperty("presentationVariant").GetString());
+    }
+
+    [Fact]
+    public void ThreeDimensionalPayload_DescribesACompleteSinglePresentation()
+    {
+        var state = new GameplayRenderingGameState();
+        state.SetTeams(
+            TeamWithRoster("Away", Color.Blue, Color.White, 181),
+            TeamWithRoster("Home", Color.Red, Color.Gold, 182));
+        state.Phase = GameplayRenderingPhase.BallInPlay;
+        state.CameraPhase = GameplayCameraPhase.ThrowToBase;
+        state.BallFlightType = GameplayBallFlightType.Throw;
+        state.PresentationKind = GameplayPresentationKind.BaseHit;
+        state.PresentationProgress = 0.84f;
+        state.PresentationTargetBase = 1;
+        state.PresentationSuccessful = true;
+        state.PresentationVariant = "Single";
+        state.BatterTargetBase = 1;
+        state.ThrowTarget = new PointF(0.5f, 0.58f);
+
+        using JsonDocument document = JsonDocument.Parse(
+            GameplayRenderingSurface.BuildThreeDimensionalStatePayload(state));
+        JsonElement root = document.RootElement;
+
+        Assert.Equal("BaseHit", root.GetProperty("presentationKind").GetString());
+        Assert.Equal("Single", root.GetProperty("presentationVariant").GetString());
+        Assert.Equal(1, root.GetProperty("presentationTargetBase").GetInt32());
+        Assert.True(root.GetProperty("presentationSuccessful").GetBoolean());
+        Assert.Equal(0.5f, root.GetProperty("throwTarget").GetProperty("x").GetSingle());
+        Assert.Equal(0.58f, root.GetProperty("throwTarget").GetProperty("y").GetSingle());
+    }
+
+    [Fact]
+    public void ThreeDimensionalPayload_DescribesAStandingDoublePresentation()
+    {
+        var state = new GameplayRenderingGameState();
+        state.SetTeams(
+            TeamWithRoster("Away", Color.Blue, Color.White, 191),
+            TeamWithRoster("Home", Color.Red, Color.Gold, 192));
+        state.Phase = GameplayRenderingPhase.BallInPlay;
+        state.CameraPhase = GameplayCameraPhase.ThrowToBase;
+        state.BallFlightType = GameplayBallFlightType.Throw;
+        state.PresentationKind = GameplayPresentationKind.BaseHit;
+        state.PresentationProgress = 0.86f;
+        state.PresentationTargetBase = 2;
+        state.PresentationSuccessful = true;
+        state.PresentationVariant = "StandingDouble";
+        state.BatterTargetBase = 2;
+        state.ThrowTarget = new PointF(0.5f, 0.58f);
+
+        using JsonDocument document = JsonDocument.Parse(
+            GameplayRenderingSurface.BuildThreeDimensionalStatePayload(state));
+        JsonElement root = document.RootElement;
+
+        Assert.Equal("BaseHit", root.GetProperty("presentationKind").GetString());
+        Assert.Equal("StandingDouble", root.GetProperty("presentationVariant").GetString());
+        Assert.Equal(2, root.GetProperty("presentationTargetBase").GetInt32());
+        Assert.Equal(2, root.GetProperty("batterTargetBase").GetInt32());
+        Assert.True(root.GetProperty("presentationSuccessful").GetBoolean());
+        Assert.Equal(0.5f, root.GetProperty("throwTarget").GetProperty("x").GetSingle());
+        Assert.Equal(0.58f, root.GetProperty("throwTarget").GetProperty("y").GetSingle());
+    }
+
+    [Fact]
+    public void CenterChargeSinglePresentation_RequiresGroundBallUpMiddleAndCenterFielder()
+    {
+        var centerFielder = new GameplayRenderingPlayerMarker { Label = "CF" };
+        var shortstop = new GameplayRenderingPlayerMarker { Label = "SS" };
+
+        Assert.True(GameplayForm.IsCenterChargeSinglePresentation(
+            GameplayBallFlightType.GroundBall,
+            new PointF(0.51f, 0.42f),
+            centerFielder));
+        Assert.False(GameplayForm.IsCenterChargeSinglePresentation(
+            GameplayBallFlightType.LineDrive,
+            new PointF(0.51f, 0.42f),
+            centerFielder));
+        Assert.False(GameplayForm.IsCenterChargeSinglePresentation(
+            GameplayBallFlightType.GroundBall,
+            new PointF(0.51f, 0.42f),
+            shortstop));
+        Assert.False(GameplayForm.IsCenterChargeSinglePresentation(
+            GameplayBallFlightType.GroundBall,
+            new PointF(0.77f, 0.42f),
+            centerFielder));
+    }
+
+    [Fact]
     public void ThreeDimensionalRendererAssets_AreOfflineAndComplete()
     {
         string folder = Path.Combine(AppContext.BaseDirectory, "Assets", "Gameplay3D");
@@ -166,6 +278,17 @@ public sealed class GameplayVisualRegressionTests
         Assert.Contains("UmpireStrikeout", rig);
         Assert.Contains("StrikeoutReaction_R", rig);
         Assert.Contains("PitcherStrikeoutReset", rig);
+        Assert.Contains("RunnerBrakeAtFirst", rig);
+        Assert.Contains("RunnerStopAtSecond", rig);
+        Assert.Contains("FielderPickup", rig);
+        Assert.Contains("RelayReceive", rig);
+        Assert.Contains("UmpireSafe", rig);
+        Assert.Contains("UmpireOut", rig);
+        Assert.Contains("centerchargesingle", script, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("safeCallStart", script);
+        Assert.Contains("stealCaught", script);
+        Assert.Contains("stealBaseCall", script);
+        Assert.Contains("caughtStealingStop", script);
         Assert.Contains("SweepTag", rig);
         Assert.Contains("RunnerLead", rig);
         Assert.Contains("PerspectiveCamera", script);
@@ -181,6 +304,10 @@ public sealed class GameplayVisualRegressionTests
         Assert.Contains("applyScoreboard", script);
         Assert.Contains("scoreboardBackground", script);
         Assert.Contains("presentationKind", script);
+        Assert.Contains("baseHitProgress", script);
+        Assert.Contains("standingDouble", script);
+        Assert.Contains("pathToDouble", script);
+        Assert.Contains("relayReceiverIndex", script);
         Assert.Contains("id=\"boardIdentity\"", html);
         Assert.Contains("id=\"boardLogo\"", html);
         Assert.Contains("id=\"venue\"", html);

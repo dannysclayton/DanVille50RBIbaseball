@@ -7,6 +7,10 @@ namespace StandaloneBaseball
     {
         private XInputButtons _previousButtons;
         private XInputButtons _currentButtons;
+        private byte _previousLeftTrigger;
+        private byte _currentLeftTrigger;
+        private byte _previousRightTrigger;
+        private byte _currentRightTrigger;
         private int _preferredControllerIndex = -1;
         private int _leftStickDeadzone = XInputController.DefaultLeftThumbDeadzone;
 
@@ -34,9 +38,9 @@ namespace StandaloneBaseball
 
         public bool BatSwingHeld => IsDown(XInputButtons.A);
 
-        public bool BatContactSwingHeld => IsDown(XInputButtons.X);
+        public bool BatContactSwingHeld => IsDown(XInputButtons.B);
 
-        public bool BatPowerSwingHeld => IsDown(XInputButtons.Y);
+        public bool BatPowerSwingHeld => IsDown(XInputButtons.X);
 
         public bool PitchReleaseHeld => IsDown(XInputButtons.A);
 
@@ -65,6 +69,10 @@ namespace StandaloneBaseball
             ConnectedControllerName = reading.DisplayName;
             _previousButtons = _currentButtons;
             _currentButtons = state.Buttons;
+            _previousLeftTrigger = _currentLeftTrigger;
+            _currentLeftTrigger = state.LeftTrigger;
+            _previousRightTrigger = _currentRightTrigger;
+            _currentRightTrigger = state.RightTrigger;
             LeftStickDirection = DirectionFromLeftStick(state.LeftThumbX, state.LeftThumbY);
             AddCommandsForButtonEdges(pendingCommands);
             return true;
@@ -84,6 +92,10 @@ namespace StandaloneBaseball
             ConnectedControllerName = null;
             _previousButtons = XInputButtons.None;
             _currentButtons = XInputButtons.None;
+            _previousLeftTrigger = 0;
+            _currentLeftTrigger = 0;
+            _previousRightTrigger = 0;
+            _currentRightTrigger = 0;
             LeftStickDirection = default;
         }
 
@@ -106,19 +118,23 @@ namespace StandaloneBaseball
 
             if (PressedThisPoll(XInputButtons.X))
             {
-                pendingCommands.Add(GameplayInputCommand.BatContactSwing);
+                pendingCommands.Add(GameplayInputCommand.BatPowerSwing);
                 pendingCommands.Add(GameplayInputCommand.ThrowThird);
+                AddSelectedPitch(GameplayPitchType.Changeup, GameplayInputCommand.SelectChangeup, pendingCommands);
             }
 
             if (PressedThisPoll(XInputButtons.Y))
             {
-                pendingCommands.Add(GameplayInputCommand.BatPowerSwing);
+                pendingCommands.Add(GameplayInputCommand.CallSacrificeBunt);
                 pendingCommands.Add(GameplayInputCommand.ThrowSecond);
+                AddSelectedPitch(GameplayPitchType.Slider, GameplayInputCommand.SelectSlider, pendingCommands);
             }
 
             if (PressedThisPoll(XInputButtons.B))
             {
+                pendingCommands.Add(GameplayInputCommand.BatContactSwing);
                 pendingCommands.Add(GameplayInputCommand.ThrowFirst);
+                AddSelectedPitch(GameplayPitchType.Curveball, GameplayInputCommand.SelectCurveball, pendingCommands);
             }
 
             AddPitchCommandIfPressed(
@@ -143,15 +159,27 @@ namespace StandaloneBaseball
                 pendingCommands);
             AddPitchCommandIfPressed(
                 XInputButtons.LeftThumb,
-                GameplayPitchType.Splitter,
-                GameplayInputCommand.SelectSplitter,
+                GameplayPitchType.Fastball,
+                GameplayInputCommand.SelectFastball,
                 pendingCommands);
 
             AddIfPressed(XInputButtons.LeftShoulder, GameplayInputCommand.AdvanceRunners, pendingCommands);
             AddIfPressed(XInputButtons.RightShoulder, GameplayInputCommand.RetreatRunners, pendingCommands);
+            if (PressedThisPoll(XInputButtons.RightShoulder))
+                AddSelectedPitch(GameplayPitchType.Splitter, GameplayInputCommand.SelectSplitter, pendingCommands);
+            if (TriggerPressedThisPoll(_currentLeftTrigger, _previousLeftTrigger))
+            {
+                pendingCommands.Add(GameplayInputCommand.CallSteal);
+                AddSelectedPitch(GameplayPitchType.Forkball, GameplayInputCommand.SelectForkball, pendingCommands);
+            }
+            if (TriggerPressedThisPoll(_currentRightTrigger, _previousRightTrigger))
+            {
+                pendingCommands.Add(GameplayInputCommand.HoldRunners);
+                AddSelectedPitch(GameplayPitchType.Knuckleball, GameplayInputCommand.SelectKnuckleball, pendingCommands);
+            }
             AddIfPressed(XInputButtons.Start, GameplayInputCommand.TogglePause, pendingCommands);
-            AddIfPressed(XInputButtons.Back, GameplayInputCommand.ToggleCamera, pendingCommands);
-            AddIfPressed(XInputButtons.RightThumb, GameplayInputCommand.ToggleWatch, pendingCommands);
+            AddIfPressed(XInputButtons.Back, GameplayInputCommand.ToggleWatch, pendingCommands);
+            AddIfPressed(XInputButtons.RightThumb, GameplayInputCommand.ToggleCamera, pendingCommands);
         }
 
         private void AddPitchCommandIfPressed(
@@ -165,6 +193,14 @@ namespace StandaloneBaseball
                 return;
             }
 
+            AddSelectedPitch(pitchType, command, pendingCommands);
+        }
+
+        private void AddSelectedPitch(
+            GameplayPitchType pitchType,
+            GameplayInputCommand command,
+            ICollection<GameplayInputCommand> pendingCommands)
+        {
             SelectedPitchType = pitchType;
             SelectedPitchTypeChanged = true;
             pendingCommands.Add(command);
@@ -211,6 +247,12 @@ namespace StandaloneBaseball
         private bool PressedThisPoll(XInputButtons button)
         {
             return (_currentButtons & button) == button && (_previousButtons & button) != button;
+        }
+
+        private static bool TriggerPressedThisPoll(byte current, byte previous)
+        {
+            return current >= PlayStation3ControllerProfile.TriggerThreshold &&
+                   previous < PlayStation3ControllerProfile.TriggerThreshold;
         }
     }
 }

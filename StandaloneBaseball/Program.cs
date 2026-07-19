@@ -24,6 +24,7 @@ namespace StandaloneBaseball
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
+                ContextHelpService.Install();
                 Application.Run(new LaunchForm());
             }
             catch (Exception ex)

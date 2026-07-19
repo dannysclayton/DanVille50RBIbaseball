@@ -89,8 +89,8 @@ namespace StandaloneBaseball
         private void DrawControllerStatus(Graphics graphics)
         {
             string text = string.IsNullOrWhiteSpace(_controllerDisplayName)
-                ? "Controller: scanning (keyboard ready)"
-                : "Controller ready: " + _controllerDisplayName;
+                ? "Controller: scanning - PlayStation 3 profile (keyboard ready)"
+                : "Controller ready: " + PlayStation3ControllerProfile.Status(_controllerDisplayName);
             Rectangle bounds = new Rectangle(18, Math.Max(8, ClientSize.Height - 42), Math.Min(470, ClientSize.Width - 36), 28);
             using var fill = new SolidBrush(Color.FromArgb(205, 5, 16, 34));
             using var outline = new Pen(string.IsNullOrWhiteSpace(_controllerDisplayName)
@@ -207,8 +207,7 @@ namespace StandaloneBaseball
             }
             _lastStickDirection = stickDirection;
 
-            if (PressedThisPoll(XInputButtons.X)
-                || PressedThisPoll(XInputButtons.A)
+            if (PressedThisPoll(XInputButtons.A)
                 || PressedThisPoll(XInputButtons.Start))
             {
                 Activate(_hotspots[_selectedIndex].Action);

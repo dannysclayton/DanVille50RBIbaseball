@@ -13,6 +13,7 @@ For the complete feature inventory, see [Feautures.md](Feautures.md).
 - Standalone league saves using readable `.dbaseball.json` files.
 - Portable team assets stored beside each league save in `[league].assets`.
 - Launch, loading, menu, lineup, national anthem, gameplay, postgame, and championship presentation screens.
+- Offline Three.js gameplay renderer with a user-created skinned 3D baseball player, independent player skeletons, team-colored uniforms, bats, gloves, live ball flight, defensive movement, base running, and event-driven cameras.
 - Full team editor with logos, photos, colors, music, fields, coaches, rosters, uniforms, cutscenes, badges, and exported pages, including team-specific or league-wide lineup cards with embedded team logos.
 - Saved `Assets\Data\schools.csv` source file for school-based team creation, with a menu option to update it from newer CSV versions.
 - 30-player varsity rosters with JV pool support, redshirts, medical tags, injured reserve, player avatars, sprites, uniforms, classifications, and progression.
@@ -38,6 +39,8 @@ Playoffs include district champions, runners-up, and wild cards. Round names sca
 ## Gameplay
 
 The game engine resolves plate appearances and live play using player ratings, pitch arsenal, pitch location, swing type, timing, fatigue, fielding, baserunning, strategies, coach quality, and game context.
+
+Playable games, watched CPU games, and gameplay replays render that shared state through the same 3D field. The Meshy/Blender character supplies named pitching, running, and walking motion; deterministic rigged baseball clips cover batting, throwing, catching, crouching, leading, sliding, and celebrations. The selected field palette and enabled home scoreboard template also carry into this renderer, including the saved logo, background, color layout, identity text, abbreviation, and ads. The older procedural character remains an offline fallback if a packaged GLB cannot load.
 
 Supported systems include:
 

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -50,24 +50,37 @@
     </None>
 
     <!-- Public packages use code-rendered visuals and silence until replacement media has verified redistribution rights. -->
-    <None Update="Assets\**\*.mp3;Assets\**\*.wav;Assets\**\*.wma;Assets\**\*.png;Assets\**\*.jpg;Assets\**\*.jpeg;Assets\**\*.bmp;Assets\**\*.gif;Assets\**\*.dib;Assets\**\*.mp4;Assets\**\*.avi;Assets\**\*.wmv;Assets\**\*.mov"
-          Condition="'$(DistributionChannel)' == 'Public'">
+    <None Update="Assets\**\*.mp3;Assets\**\*.wav;Assets\**\*.wma;Assets\**\*.png;Assets\**\*.jpg;Assets\**\*.jpeg;Assets\**\*.bmp;Assets\**\*.gif;Assets\**\*.dib;Assets\**\*.mp4;Assets\**\*.avi;Assets\**\*.wmv;Assets\**\*.mov" Condition="'$(DistributionChannel)' == 'Public'">
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
 
     <!-- These user-approved assets intentionally ship in both distributions. -->
-    <None Update="Assets\Trophies\baseball-mvp-trophy-template.jpg"
-          Condition="'$(DistributionChannel)' == 'Public'">
+    <None Update="Assets\Trophies\baseball-mvp-trophy-template.jpg" Condition="'$(DistributionChannel)' == 'Public'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-    <None Update="Assets\Loading Screens\season_opening_baseball_is_back.jpg;Assets\Loading Screens\season_opening_danville50.png;Assets\Loading Screens\doubleheader_game_two.jpg"
-          Condition="'$(DistributionChannel)' == 'Public'">
+    <None Update="Assets\Loading Screens\season_opening_baseball_is_back.jpg;Assets\Loading Screens\season_opening_danville50.png;Assets\Loading Screens\doubleheader_game_two.jpg" Condition="'$(DistributionChannel)' == 'Public'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" GeneratePathProperty="true" ExcludeAssets="all" />
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>$(PkgMicrosoft_Web_WebView2)\lib_manual\netcoreapp3.0\Microsoft.Web.WebView2.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.WinForms">
+      <HintPath>$(PkgMicrosoft_Web_WebView2)\lib_manual\netcoreapp3.0\Microsoft.Web.WebView2.WinForms.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll" Link="WebView2Loader.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

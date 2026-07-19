@@ -695,6 +695,15 @@ This file catalogs the current feature set in the standalone Dan's RBI Baseball 
 
 ## Game Presentation
 
+- Playable games, watched CPU games, and gameplay-rendered replays use the same offline Three.js field renderer and live game state.
+- A user-created Meshy/Blender skinned player model replaces the mannequin presentation when packaged GLB assets load.
+- Every on-field player has independent skeleton and animation state while sharing optimized base geometry and textures.
+- Named Meshy pitching, running, and walking clips combine with deterministic batting, throwing, catching, crouching, leading, sliding, and celebration clips.
+- Team-selected uniform colors, handedness-aware gloves, batting gloves, and bats are applied at runtime.
+- At-bat and ball-tracking cameras follow pitching, contact, fielding, throws, runners, and close plays.
+- The renderer remains fully offline and retains the procedural character as a missing-asset fallback.
+- Selected field colors drive the 3D grass, infield, clay, wall, seating, structure, accent, and visible venue name.
+- Team logos and scoreboard background images are converted to cached in-memory data URLs, so the embedded renderer never receives access to arbitrary local folders.
 - Enabled home-team scoreboard templates replace the generic gameplay HUD in playable games, watched CPU games, and gameplay-rendered replays.
 - Custom scoreboards show the live score, inning half, ball-strike-out count, home logo, school name, abbreviation, mascot, configured color layout, background, and advertising strip.
 - Disabling the home scoreboard template retains the compact generic gameplay HUD.

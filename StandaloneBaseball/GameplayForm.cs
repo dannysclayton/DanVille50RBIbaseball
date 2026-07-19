@@ -16,6 +16,9 @@ namespace StandaloneBaseball
         private const int CpuPitchDelayTicks = 105;
         private const float PitchProgressPerTick = 0.018f;
         private const float BallInPlayProgressPerTick = 0.014f;
+        private const float ThrowProgressPerTick = 0.036f;
+        private const float StealPresentationProgressPerTick = 0.0052f;
+        private const float StrikeoutPresentationProgressPerTick = 0.0067f;
         private const int SeniorStarterPitchLimit = 100;
         private const int ReliefPitcherMaxOuts = 6;
         private const int MidInningReliefBoostPercent = 25;
@@ -155,6 +158,15 @@ namespace StandaloneBaseball
         private PointF _ballStart;
         private PointF _ballTarget;
         private float _ballProgress;
+        private PointF _throwStart;
+        private PointF _throwTarget;
+        private float _throwProgress;
+        private bool _throwPresentationActive;
+        private PendingStealPresentation? _pendingStealPresentation;
+        private PendingStrikeoutPresentation? _pendingStrikeoutPresentation;
+        private GameplayBase? _requestedThrowBase;
+        private bool _userAdvanceRunners;
+        private bool _userHoldRunners;
         private int _pitchBreakSign = 1;
         private double _knuckleWobbleSeed;
         private Guid _awayStarterPitcherId;
@@ -204,6 +216,20 @@ namespace StandaloneBaseball
             public int ConsecutiveScorelessInnings { get; set; }
             public int AdvancementBoostPercent { get; set; }
             public bool EarnedRunReductionImmune { get; set; }
+        }
+
+        private sealed class PendingStealPresentation
+        {
+            public StealCandidate Candidate { get; init; }
+            public StealAttemptResult Result { get; init; } = new StealAttemptResult();
+            public Player? Catcher { get; init; }
+            public Player? TagFielder { get; init; }
+            public Player Pitcher { get; init; } = new Player();
+        }
+
+        private sealed class PendingStrikeoutPresentation
+        {
+            public bool Swinging { get; init; }
         }
 
         public GameResult? FinalResult { get; private set; }
@@ -660,7 +686,8 @@ namespace StandaloneBaseball
             SetButtonState(_stealDefenseButtons, DefensiveStealCall.Pitchout, canChoose && FindLeadStealCandidate().Runner != null);
             SetButtonState(_stealDefenseButtons, DefensiveStealCall.Pickoff, canChoose && hasAnyRunner);
             SetButtonState(_moundVisitButton, canChoose && _state.Phase != GameplayRenderingPhase.Pitching && CurrentFieldingTeamMoundVisits() < 2);
-            SetButtonState(_saveGameButton, !_gameComplete);
+            SetButtonState(_saveGameButton, !_gameComplete &&
+                _pendingStealPresentation == null && _pendingStrikeoutPresentation == null);
 
             HighlightButton(_offensiveStrategyButtons, _offensiveStrategyCall);
             HighlightButton(_defensiveStrategyButtons, _defensiveAlignmentCall);
@@ -676,6 +703,8 @@ namespace StandaloneBaseball
         private bool CanChooseStrategy()
         {
             return !_gameComplete &&
+                _pendingStealPresentation == null &&
+                _pendingStrikeoutPresentation == null &&
                 _mode != GameMode.CpuVsCpuWatch &&
                 _mode != GameMode.QuickSim &&
                 (_state.Phase == GameplayRenderingPhase.Ready ||
@@ -831,6 +860,11 @@ namespace StandaloneBaseball
             _state.BallVisible = true;
             _state.BallTrail = 0f;
             _state.BallPosition = new PointF(0.5f, 0.62f);
+            _state.BallHeight = 0f;
+            _state.BallFlightType = GameplayBallFlightType.None;
+            _state.CameraPhase = GameplayCameraPhase.AtBat;
+            _state.CameraFocus = new PointF(0.5f, 0.70f);
+            _throwPresentationActive = false;
             _state.Phase = GameplayRenderingPhase.Ready;
             _state.ModeLabel = "Ready";
             _surface.SetState(_state);
@@ -859,6 +893,8 @@ namespace StandaloneBaseball
             _state.BallPosition = new PointF(0.5f, 0.62f);
             _state.BallHeight = 0f;
             _state.BallTrail = 0f;
+            _state.BallFlightType = GameplayBallFlightType.None;
+            _state.CameraPhase = GameplayCameraPhase.AtBat;
             _state.ActiveFielderIndex = 1;
             _state.ReplayActors.Clear();
             _surface.Invalidate();
@@ -874,6 +910,13 @@ namespace StandaloneBaseball
             _state.BallPosition = new PointF(Math.Clamp(frame.BallX, 0f, 1f), Math.Clamp(frame.BallY, 0f, 1f));
             _state.BallHeight = Math.Max(0f, frame.BallZ);
             _state.BallTrail = frame.BallVisible ? Math.Max(0f, 1f - frame.Progress) : 0f;
+            _state.BallFlightType = frame.Actors.Count > 0
+                ? GameplayBallFlightType.FlyBall
+                : GameplayBallFlightType.Pitch;
+            _state.CameraPhase = frame.Actors.Count > 0
+                ? GameplayCameraPhase.BallTracking
+                : GameplayCameraPhase.AtBat;
+            _state.CameraFocus = _state.BallPosition;
             _state.ActiveFielderIndex = 1;
             _state.ReplayActors.Clear();
 
@@ -1812,6 +1855,24 @@ namespace StandaloneBaseball
                 return;
             }
 
+            if (_pendingStealPresentation != null)
+            {
+                TickStealPresentation();
+                UpdateInningMusic();
+                UpdateStrategyMenuState();
+                _surface.Invalidate();
+                return;
+            }
+
+            if (_pendingStrikeoutPresentation != null)
+            {
+                TickStrikeoutPresentation();
+                UpdateInningMusic();
+                UpdateStrategyMenuState();
+                _surface.Invalidate();
+                return;
+            }
+
             if (_mode == GameMode.CpuVsCpuWatch || _mode == GameMode.QuickSim)
                 TickWatchMode();
             else if (_mode == GameMode.UserVsCpu)
@@ -1857,32 +1918,63 @@ namespace StandaloneBaseball
                     break;
                 case GameplayInputCommand.ThrowHome:
                     if (!HumanControlsFieldingTeam()) break;
+                    if (_state.Phase == GameplayRenderingPhase.BallInPlay)
+                    {
+                        RequestFieldingThrow(GameplayBase.Home);
+                        break;
+                    }
                     SetDefensiveStealCall(DefensiveStealCall.Pitchout);
                     break;
                 case GameplayInputCommand.ThrowFirst:
                     if (!HumanControlsFieldingTeam()) break;
+                    if (_state.Phase == GameplayRenderingPhase.BallInPlay)
+                    {
+                        RequestFieldingThrow(GameplayBase.First);
+                        break;
+                    }
                     SetDefensiveStealCall(DefensiveStealCall.HoldRunner);
                     break;
                 case GameplayInputCommand.ThrowSecond:
                     if (!HumanControlsFieldingTeam()) break;
+                    if (_state.Phase == GameplayRenderingPhase.BallInPlay)
+                    {
+                        RequestFieldingThrow(GameplayBase.Second);
+                        break;
+                    }
                     SetDefensiveStealCall(DefensiveStealCall.SlideStep);
                     break;
                 case GameplayInputCommand.ThrowThird:
                     if (!HumanControlsFieldingTeam()) break;
+                    if (_state.Phase == GameplayRenderingPhase.BallInPlay)
+                    {
+                        RequestFieldingThrow(GameplayBase.Third);
+                        break;
+                    }
                     TryResolvePickoffMove();
                     break;
                 case GameplayInputCommand.AdvanceRunners:
                 {
                     if (!HumanControlsBattingTeam()) break;
+                    if (_state.Phase == GameplayRenderingPhase.BallInPlay)
+                    {
+                        _userAdvanceRunners = true;
+                        _userHoldRunners = false;
+                        _state.ModeLabel = "Runners advancing";
+                        break;
+                    }
                     TryResolveStealAttempt(userInitiated: true);
                     break;
                 }
                 case GameplayInputCommand.RetreatRunners:
                     if (!HumanControlsBattingTeam()) break;
+                    _userAdvanceRunners = false;
+                    _userHoldRunners = true;
                     _state.ModeLabel = "Runners return / hold";
                     break;
                 case GameplayInputCommand.HoldRunners:
                     if (!HumanControlsBattingTeam()) break;
+                    _userAdvanceRunners = false;
+                    _userHoldRunners = true;
                     _state.ModeLabel = "Runners stop";
                     break;
                 case GameplayInputCommand.CallSacrificeBunt:
@@ -1967,6 +2059,7 @@ namespace StandaloneBaseball
                     if (HumanControlsFieldingTeam())
                     {
                         _currentPitchType = SelectedPitchTypeForFieldingTeam();
+                        _state.PitchTypeLabel = _currentPitchType.ToString();
                         _state.ModeLabel = "Pitch: " + _currentPitchType;
                     }
                     break;
@@ -2378,7 +2471,7 @@ namespace StandaloneBaseball
                     break;
                 if (candidate.Runner == null || !BaseHasRunner(candidate.FromBase, candidate.Runner))
                     continue;
-                ResolveSteal(candidate, _defensiveStealCall);
+                ResolveSteal(candidate, _defensiveStealCall, animate: false);
             }
 
             if (!_gameComplete && _state.Outs < 3)
@@ -2387,7 +2480,7 @@ namespace StandaloneBaseball
             return true;
         }
 
-        private StealAttemptResult ResolveSteal(StealCandidate candidate, DefensiveStealCall call)
+        private StealAttemptResult ResolveSteal(StealCandidate candidate, DefensiveStealCall call, bool animate = true)
         {
             Player pitcher = CurrentPitcher();
             Player? catcher = FindDefensivePlayer("C") ?? _state.FieldingTeam?.Roster?.FirstOrDefault(IsPitcherOrCatcherPosition);
@@ -2408,9 +2501,177 @@ namespace StandaloneBaseball
                 scoreDifferential,
                 call);
 
-            ApplyStealResult(candidate, result, catcher, tagFielder, pitcher);
+            if (animate)
+                StartStealPresentation(candidate, result, catcher, tagFielder, pitcher);
+            else
+                ApplyStealResult(candidate, result, catcher, tagFielder, pitcher);
             _defensiveStealCall = DefensiveStealCall.Normal;
             return result;
+        }
+
+        private void StartStealPresentation(
+            StealCandidate candidate,
+            StealAttemptResult result,
+            Player? catcher,
+            Player? tagFielder,
+            Player pitcher)
+        {
+            _pendingStealPresentation = new PendingStealPresentation
+            {
+                Candidate = candidate,
+                Result = result,
+                Catcher = catcher,
+                TagFielder = tagFielder,
+                Pitcher = pitcher
+            };
+
+            _state.SeedFielders();
+            int tagIndex = _state.Fielders.FindIndex(marker =>
+                marker.Player != null && tagFielder != null && marker.Player.Id == tagFielder.Id);
+            if (tagIndex < 0)
+            {
+                string tagLabel = candidate.TargetBase switch
+                {
+                    2 => "SS",
+                    3 => "3B",
+                    4 => "C",
+                    _ => "1B"
+                };
+                tagIndex = _state.Fielders.FindIndex(marker =>
+                    string.Equals(marker.Label, tagLabel, StringComparison.OrdinalIgnoreCase));
+            }
+
+            _state.ActiveFielderIndex = Math.Max(0, tagIndex);
+            _state.PresentationKind = GameplayPresentationKind.Steal;
+            _state.PresentationProgress = 0f;
+            _state.PresentationFromBase = candidate.FromBase;
+            _state.PresentationTargetBase = candidate.TargetBase;
+            _state.PresentationSuccessful = result.SuccessfulSteal;
+            _state.PresentationVariant = result.SuccessfulSteal ? "Safe" : "Out";
+            _state.Phase = GameplayRenderingPhase.DeadBall;
+            _state.CameraPhase = GameplayCameraPhase.AtBat;
+            _state.BallFlightType = GameplayBallFlightType.Pitch;
+            _state.BallPosition = new PointF(0.5f, 0.62f);
+            _state.BallHeight = 0f;
+            _state.BallVisible = false;
+            _state.BallTrail = 0f;
+            _state.AnimationProgress = 0f;
+            _state.ModeLabel = "Steal attempt: " + candidate.Runner.Name;
+        }
+
+        private void TickStealPresentation()
+        {
+            PendingStealPresentation? pending = _pendingStealPresentation;
+            if (pending == null)
+                return;
+
+            float progress = Math.Min(1f, _state.PresentationProgress + StealPresentationProgressPerTick);
+            _state.PresentationProgress = progress;
+            _state.AnimationProgress = progress;
+
+            PointF mound = new PointF(0.5f, 0.62f);
+            PointF plate = WorldPositionForBase(GameplayBase.Home);
+            PointF target = WorldPositionForBaseNumber(pending.Candidate.TargetBase);
+
+            if (progress < 0.30f)
+            {
+                _state.CameraPhase = GameplayCameraPhase.AtBat;
+                _state.BallFlightType = GameplayBallFlightType.Pitch;
+                _state.BallPosition = mound;
+                _state.BallHeight = 0f;
+                _state.BallVisible = false;
+            }
+            else if (progress < 0.48f)
+            {
+                float pitchProgress = Math.Clamp((progress - 0.30f) / 0.18f, 0f, 1f);
+                _state.CameraPhase = GameplayCameraPhase.AtBat;
+                _state.BallFlightType = GameplayBallFlightType.Pitch;
+                _state.BallPosition = Lerp(mound, plate, PhysicalTravelProgress(pitchProgress, 0.025f));
+                _state.BallHeight = BallHeightForFlight(GameplayBallFlightType.Pitch, pitchProgress);
+                _state.BallVisible = true;
+                _state.BallTrail = 1f - pitchProgress;
+            }
+            else if (progress < 0.60f)
+            {
+                _state.CameraPhase = GameplayCameraPhase.AtBat;
+                _state.BallPosition = plate;
+                _state.BallHeight = 0f;
+                _state.BallVisible = false;
+                _state.BallTrail = 0f;
+            }
+            else if (progress < 0.83f)
+            {
+                float throwProgress = Math.Clamp((progress - 0.60f) / 0.23f, 0f, 1f);
+                _state.CameraPhase = GameplayCameraPhase.ThrowToBase;
+                _state.ThrowTarget = target;
+                _state.BallFlightType = GameplayBallFlightType.Throw;
+                _state.BallPosition = Lerp(plate, target, PhysicalTravelProgress(throwProgress, 0.04f));
+                _state.BallHeight = BallHeightForFlight(GameplayBallFlightType.Throw, throwProgress);
+                _state.BallVisible = true;
+                _state.BallTrail = Math.Max(0.08f, 0.72f * (1f - throwProgress));
+            }
+            else
+            {
+                _state.CameraPhase = GameplayCameraPhase.ClosePlay;
+                _state.BallPosition = target;
+                _state.BallHeight = 0f;
+                _state.BallVisible = progress < 0.92f;
+                _state.BallTrail = 0f;
+            }
+
+            _state.CameraFocus = _state.BallPosition;
+            if (progress < 1f)
+                return;
+
+            _pendingStealPresentation = null;
+            _state.PresentationKind = GameplayPresentationKind.None;
+            _state.PresentationProgress = 0f;
+            _state.PresentationVariant = "";
+            _state.BallVisible = false;
+            _state.BallTrail = 0f;
+            ApplyStealResult(pending.Candidate, pending.Result, pending.Catcher, pending.TagFielder, pending.Pitcher);
+        }
+
+        private void StartStrikeoutPresentation(bool swinging)
+        {
+            _pendingStrikeoutPresentation = new PendingStrikeoutPresentation { Swinging = swinging };
+            _state.PresentationKind = GameplayPresentationKind.Strikeout;
+            _state.PresentationProgress = 0f;
+            _state.PresentationFromBase = 0;
+            _state.PresentationTargetBase = 0;
+            _state.PresentationSuccessful = true;
+            _state.PresentationVariant = swinging ? "Swinging" : "Called";
+            _state.Phase = GameplayRenderingPhase.DeadBall;
+            _state.CameraPhase = GameplayCameraPhase.AtBat;
+            _state.BallPosition = WorldPositionForBase(GameplayBase.Home);
+            _state.BallHeight = 0f;
+            _state.BallVisible = false;
+            _state.BallTrail = 0f;
+            _state.AnimationProgress = 0f;
+            _state.ModeLabel = swinging ? "Strike three - swinging" : "Strike three - called";
+        }
+
+        private void TickStrikeoutPresentation()
+        {
+            if (_pendingStrikeoutPresentation == null)
+                return;
+
+            float progress = Math.Min(1f, _state.PresentationProgress + StrikeoutPresentationProgressPerTick);
+            _state.PresentationProgress = progress;
+            _state.AnimationProgress = progress;
+            _state.CameraPhase = GameplayCameraPhase.AtBat;
+            _state.BallVisible = false;
+            _state.BallTrail = 0f;
+            if (progress < 1f)
+                return;
+
+            _pendingStrikeoutPresentation = null;
+            _state.PresentationKind = GameplayPresentationKind.None;
+            _state.PresentationProgress = 0f;
+            _state.PresentationVariant = "";
+            RecordOut("Strikeout");
+            ResetStrategyCalls();
+            PlayAfterPitchRunnerPromptIfNeeded();
         }
 
         private void ApplyStealResult(StealCandidate candidate, StealAttemptResult result, Player? catcher, Player? tagFielder, Player pitcher)
@@ -4427,6 +4688,34 @@ namespace StandaloneBaseball
         private int BattingTeamScoreDifferential()
             => _state.TopHalf ? _state.AwayScore - _state.HomeScore : _state.HomeScore - _state.AwayScore;
 
+        private void RequestFieldingThrow(GameplayBase target)
+        {
+            _requestedThrowBase = target;
+            _state.ThrowTarget = WorldPositionForBase(target);
+            _state.ModeLabel = "Throw queued: " + target;
+        }
+
+        private static PointF WorldPositionForBase(GameplayBase target)
+        {
+            return target switch
+            {
+                GameplayBase.First => new PointF(0.64f, 0.72f),
+                GameplayBase.Second => new PointF(0.5f, 0.58f),
+                GameplayBase.Third => new PointF(0.36f, 0.72f),
+                _ => new PointF(0.5f, 0.86f)
+            };
+        }
+
+        private static PointF WorldPositionForBaseNumber(int baseNumber)
+        {
+            return baseNumber switch
+            {
+                1 => WorldPositionForBase(GameplayBase.First),
+                2 => WorldPositionForBase(GameplayBase.Second),
+                3 => WorldPositionForBase(GameplayBase.Third),
+                _ => WorldPositionForBase(GameplayBase.Home)
+            };
+        }
 
         private void PrimaryAction()
         {
@@ -4459,6 +4748,10 @@ namespace StandaloneBaseball
             _state.SeedFielders();
             _pickoffAttemptsThisPlateAppearance = 0;
             _state.Phase = GameplayRenderingPhase.Pitching;
+            _state.CameraPhase = GameplayCameraPhase.AtBat;
+            _state.CameraFocus = new PointF(0.5f, 0.70f);
+            _state.BallFlightType = GameplayBallFlightType.Pitch;
+            _state.BatterTargetBase = 1;
             _state.ModeLabel = "Pitch";
             PlayPitchThrowSound();
             _defensiveStealCall = DefensiveStealCall.Normal;
@@ -4474,8 +4767,12 @@ namespace StandaloneBaseball
             {
                 PrepareCpuPitch();
             }
+            _state.PitchTypeLabel = _currentPitchType.ToString();
             _ballProgress = 0f;
+            _throwPresentationActive = false;
+            _requestedThrowBase = null;
             _state.AnimationProgress = 0f;
+            _state.BallHeight = 0f;
             _pitchBreakSign = _rng.Next(2) == 0 ? -1 : 1;
             _knuckleWobbleSeed = _rng.NextDouble() * Math.PI * 2.0;
             _state.BallPosition = _ballStart;
@@ -4538,8 +4835,14 @@ namespace StandaloneBaseball
         {
             _ballProgress = Math.Min(1f, _ballProgress + PitchProgressPerTick);
             _state.AnimationProgress = _ballProgress;
-            _state.BallPosition = ApplyPitchMovement(Lerp(_ballStart, _ballTarget, EaseOut(_ballProgress)), _ballProgress);
-            _state.BallTrail = Math.Max(0f, 1f - _ballProgress);
+            const float releasePoint = 0.32f;
+            float flightProgress = Math.Clamp((_ballProgress - releasePoint) / (1f - releasePoint), 0f, 1f);
+            _state.BallVisible = _ballProgress >= releasePoint;
+            _state.BallPosition = ApplyPitchMovement(
+                Lerp(_ballStart, _ballTarget, PhysicalTravelProgress(flightProgress, 0.025f)),
+                flightProgress);
+            _state.BallHeight = BallHeightForFlight(GameplayBallFlightType.Pitch, flightProgress);
+            _state.BallTrail = _state.BallVisible ? Math.Max(0f, 1f - flightProgress) : 0f;
 
             if (_ballProgress >= 1f)
                 TakePitch();
@@ -4575,6 +4878,7 @@ namespace StandaloneBaseball
         private void TakePitch()
         {
             int adjustment = CurrentPitcherPerformanceAdjustmentPercent();
+            bool presentationStarted = false;
             var resolution = SharedGameEngine.ResolvePitch(_rng, BuildSharedPitchRequest(SharedSwingType.Take, 1.0, adjustment));
             if (resolution.ResultType == SharedPitchResultType.HitByPitch)
             {
@@ -4625,7 +4929,10 @@ namespace StandaloneBaseball
                     if (CurrentPitcherStrikeoutsBecomeSingles())
                         RecordFatiguedStrikeoutSingle();
                     else
-                        RecordOut("Strikeout");
+                    {
+                        StartStrikeoutPresentation(swinging: false);
+                        presentationStarted = true;
+                    }
                 }
                 else
                 {
@@ -4635,8 +4942,11 @@ namespace StandaloneBaseball
 
             _state.Phase = GameplayRenderingPhase.DeadBall;
             _state.BallTrail = 0f;
-            ResetStrategyCalls();
-            PlayAfterPitchRunnerPromptIfNeeded();
+            if (!presentationStarted)
+            {
+                ResetStrategyCalls();
+                PlayAfterPitchRunnerPromptIfNeeded();
+            }
         }
 
         private void ResolveSwing(SharedSwingType swingType, double? timingQuality = null)
@@ -4649,6 +4959,7 @@ namespace StandaloneBaseball
             }
 
             int adjustment = CurrentPitcherPerformanceAdjustmentPercent();
+            bool presentationStarted = false;
             double timing = timingQuality ?? Math.Clamp(1.0 - Math.Abs(_ballProgress - 0.72f) / 0.55f, 0.05, 1.0);
             var resolution = SharedGameEngine.ResolvePitch(_rng, BuildSharedPitchRequest(swingType, timing, adjustment));
 
@@ -4665,11 +4976,6 @@ namespace StandaloneBaseball
                 StartBallInPlayMusic();
                 _state.Phase = GameplayRenderingPhase.BallInPlay;
                 _ballStart = _state.BallPosition;
-                _ballTarget = new PointF(_rng.Next(24, 77) / 100f, _rng.Next(24, 55) / 100f);
-                _ballProgress = 0f;
-                _state.AnimationProgress = 0f;
-                _state.BallTrail = 1f;
-                PickBallTargetFielder();
                 _pendingBattedBallResult = SharedGameEngine.ResolveBattedBall(_rng, new SharedBattedBallRequest
                 {
                     Batter = _state.CurrentBatterPlayer() ?? throw new InvalidOperationException("The batting team has no current batter."),
@@ -4684,6 +4990,18 @@ namespace StandaloneBaseball
                     NoDoublesDefense = _defensiveAlignmentCall == DefensiveAlignmentCall.NoDoubles,
                     OutfieldIn = _defensiveAlignmentCall == DefensiveAlignmentCall.OutfieldIn
                 });
+                _state.BallFlightType = SelectBallFlight(_pendingBattedBallResult.Value, swingType);
+                _state.BatterTargetBase = BasesForVisualResult(_pendingBattedBallResult.Value);
+                _ballTarget = SelectBattedBallTarget(_pendingBattedBallResult.Value, _state.BallFlightType);
+                _ballProgress = 0f;
+                _throwPresentationActive = false;
+                _requestedThrowBase = null;
+                _state.AnimationProgress = 0f;
+                _state.BallHeight = 0f;
+                _state.BallTrail = 1f;
+                _state.CameraPhase = GameplayCameraPhase.BallTracking;
+                _state.CameraFocus = _ballTarget;
+                PickBallTargetFielder();
                 return;
             }
 
@@ -4697,7 +5015,10 @@ namespace StandaloneBaseball
                     if (CurrentPitcherStrikeoutsBecomeSingles())
                         RecordFatiguedStrikeoutSingle();
                     else
-                        RecordOut("Strikeout");
+                    {
+                        StartStrikeoutPresentation(swinging: true);
+                        presentationStarted = true;
+                    }
                 }
                 else
                 {
@@ -4720,8 +5041,112 @@ namespace StandaloneBaseball
             StopBallInPlayMusic();
             _state.Phase = GameplayRenderingPhase.DeadBall;
             _state.BallTrail = 0f;
-            ResetStrategyCalls();
-            PlayAfterPitchRunnerPromptIfNeeded();
+            if (!presentationStarted)
+            {
+                ResetStrategyCalls();
+                PlayAfterPitchRunnerPromptIfNeeded();
+            }
+        }
+
+        private GameplayBallFlightType SelectBallFlight(SharedBattedBallResultType result, SharedSwingType swingType)
+        {
+            if (result == SharedBattedBallResultType.HomeRun)
+                return GameplayBallFlightType.HomeRun;
+            if (result == SharedBattedBallResultType.Triple)
+                return _rng.Next(100) < 72 ? GameplayBallFlightType.FlyBall : GameplayBallFlightType.LineDrive;
+            if (result == SharedBattedBallResultType.Double)
+                return _rng.Next(100) < 58 ? GameplayBallFlightType.LineDrive : GameplayBallFlightType.FlyBall;
+            if (result == SharedBattedBallResultType.Error)
+                return _rng.Next(100) < 72 ? GameplayBallFlightType.GroundBall : GameplayBallFlightType.LineDrive;
+            if (swingType == SharedSwingType.Contact)
+                return _rng.Next(100) < 62 ? GameplayBallFlightType.GroundBall : GameplayBallFlightType.LineDrive;
+            if (swingType == SharedSwingType.Power)
+                return _rng.Next(100) < 67 ? GameplayBallFlightType.FlyBall : GameplayBallFlightType.LineDrive;
+
+            int roll = _rng.Next(100);
+            return roll < 42
+                ? GameplayBallFlightType.GroundBall
+                : roll < 74
+                    ? GameplayBallFlightType.LineDrive
+                    : GameplayBallFlightType.FlyBall;
+        }
+
+        private PointF SelectBattedBallTarget(SharedBattedBallResultType result, GameplayBallFlightType flight)
+        {
+            float x = _rng.Next(14, 87) / 100f;
+            float y;
+            switch (result)
+            {
+                case SharedBattedBallResultType.HomeRun:
+                    y = _rng.Next(9, 18) / 100f;
+                    break;
+                case SharedBattedBallResultType.Triple:
+                    x = _rng.Next(2) == 0 ? _rng.Next(12, 28) / 100f : _rng.Next(72, 89) / 100f;
+                    y = _rng.Next(17, 27) / 100f;
+                    break;
+                case SharedBattedBallResultType.Double:
+                    y = _rng.Next(22, 36) / 100f;
+                    break;
+                case SharedBattedBallResultType.Single:
+                    y = _rng.Next(34, 52) / 100f;
+                    break;
+                default:
+                    y = flight == GameplayBallFlightType.GroundBall
+                        ? _rng.Next(51, 69) / 100f
+                        : _rng.Next(25, 50) / 100f;
+                    break;
+            }
+
+            return new PointF(Math.Clamp(x, 0.08f, 0.92f), Math.Clamp(y, 0.08f, 0.76f));
+        }
+
+        private static int BasesForVisualResult(SharedBattedBallResultType result)
+        {
+            return result switch
+            {
+                SharedBattedBallResultType.Double => 2,
+                SharedBattedBallResultType.Triple => 3,
+                SharedBattedBallResultType.HomeRun => 4,
+                _ => 1
+            };
+        }
+
+        internal static float BallHeightForFlight(GameplayBallFlightType flight, float progress)
+        {
+            progress = Math.Clamp(progress, 0f, 1f);
+            float gravityArc = 4f * progress * (1f - progress);
+            return flight switch
+            {
+                GameplayBallFlightType.GroundBall => GroundBallBounceHeight(progress),
+                GameplayBallFlightType.LineDrive => gravityArc * 0.34f,
+                GameplayBallFlightType.FlyBall => gravityArc * 0.72f,
+                GameplayBallFlightType.HomeRun => gravityArc * 0.94f,
+                GameplayBallFlightType.Throw => gravityArc * 0.18f,
+                GameplayBallFlightType.Pitch => gravityArc * 0.018f,
+                _ => 0f
+            };
+        }
+
+        private static float GroundBallBounceHeight(float progress)
+        {
+            if (progress <= 0f || progress >= 1f)
+                return 0f;
+
+            float firstHopProgress = progress / 0.24f;
+            float firstHop = progress < 0.24f
+                ? 4f * firstHopProgress * (1f - firstHopProgress) * 0.075f
+                : 0f;
+            float remaining = Math.Max(0f, 1f - progress);
+            float laterHops = Math.Abs((float)Math.Sin((progress - 0.24f) * Math.PI * 8.5f))
+                * 0.038f * remaining;
+            return Math.Max(firstHop, laterHops);
+        }
+
+        internal static float PhysicalTravelProgress(float progress, float drag)
+        {
+            progress = Math.Clamp(progress, 0f, 1f);
+            drag = Math.Clamp(drag, 0f, 0.45f);
+            return progress + drag * progress * (1f - progress);
         }
 
         private SharedPitchRequest BuildSharedPitchRequest(SharedSwingType swingType, double timingQuality, int adjustment)
@@ -4806,7 +5231,7 @@ namespace StandaloneBaseball
                     ResolveContestedBaseOut(play, fielder, batter, pitcher, LiveHitType.Single);
                     StopBallInPlayMusic();
                     _state.Phase = GameplayRenderingPhase.DeadBall;
-                    _state.BallTrail = 0f;
+                    CompleteBallPresentationVisuals();
                     ResetStrategyCalls();
                     PlayAfterPitchRunnerPromptIfNeeded();
                     return;
@@ -5057,6 +5482,10 @@ namespace StandaloneBaseball
             if (hitType == LiveHitType.HomeRun || fielder?.Player == null)
                 return default;
 
+            LiveContestedBasePlay requested = RequestedContestedBasePlay(hitType);
+            if (requested.Runner != null)
+                return requested;
+
             int basesAwarded = BasesAwardedForHit(hitType);
             for (int baseNumber = 3; baseNumber >= 1; baseNumber--)
             {
@@ -5107,6 +5536,47 @@ namespace StandaloneBaseball
                     targetBase: 1,
                     batterRunner: true,
                     creditsHit: false);
+            }
+
+            return default;
+        }
+
+        private LiveContestedBasePlay RequestedContestedBasePlay(LiveHitType hitType)
+        {
+            if (!_requestedThrowBase.HasValue)
+                return default;
+
+            int targetBase = _requestedThrowBase.Value switch
+            {
+                GameplayBase.First => 1,
+                GameplayBase.Second => 2,
+                GameplayBase.Third => 3,
+                _ => 4
+            };
+            if (targetBase == 1 && hitType == LiveHitType.Single)
+            {
+                Player? batter = _state.CurrentBatterPlayer();
+                return batter == null
+                    ? default
+                    : new LiveContestedBasePlay(batter, 0, 1, batterRunner: true, creditsHit: false);
+            }
+
+            int basesAwarded = BasesAwardedForHit(hitType);
+            for (int baseNumber = 3; baseNumber >= 1; baseNumber--)
+            {
+                var runnerBase = _state.Bases[baseNumber - 1];
+                if (!runnerBase.Occupied || runnerBase.Player == null)
+                    continue;
+                if (Math.Min(4, baseNumber + basesAwarded) != targetBase)
+                    continue;
+
+                bool forceOut = baseNumber == 1 && targetBase == 2;
+                return new LiveContestedBasePlay(
+                    runnerBase.Player,
+                    baseNumber,
+                    targetBase,
+                    batterRunner: false,
+                    creditsHit: !forceOut);
             }
 
             return default;
@@ -5347,6 +5817,13 @@ namespace StandaloneBaseball
                     runnerAheadOccupied);
                 if (_offensiveStrategyCall == OffensiveStrategyCall.Safe && !forced)
                     decision = new GameplayCpu.BaserunningDecision(GameplayCpu.BaserunningAction.Hold, runner.BaseNumber, 0.95);
+                if (HumanControlsBattingTeam() && _userHoldRunners && !forced)
+                    decision = new GameplayCpu.BaserunningDecision(GameplayCpu.BaserunningAction.Hold, runner.BaseNumber, 1.0);
+                else if (HumanControlsBattingTeam() && _userAdvanceRunners)
+                    decision = new GameplayCpu.BaserunningDecision(
+                        GameplayCpu.BaserunningAction.Advance,
+                        Math.Min(4, Math.Max(minimumTarget, runner.BaseNumber + 1)),
+                        1.0);
 
                 int target = ResolveRunnerTargetBase(runner.BaseNumber, minimumTarget, decision);
                 if (_offensiveStrategyCall == OffensiveStrategyCall.HitAndRun)
@@ -5475,20 +5952,39 @@ namespace StandaloneBaseball
 
         private void TickBallInPlay()
         {
-            _ballProgress = Math.Min(1f, _ballProgress + BallInPlayProgressPerTick);
-            _state.AnimationProgress = _ballProgress;
-            _state.BallPosition = Lerp(_ballStart, _ballTarget, EaseOut(_ballProgress));
-            _state.BallTrail = Math.Max(0f, 1f - _ballProgress);
-
-            if (!HumanControlsFieldingTeam() && _state.Fielders.Count > 0)
+            if (_throwPresentationActive)
             {
-                int activeIndex = Math.Clamp(_state.ActiveFielderIndex, 0, _state.Fielders.Count - 1);
-                GameplayRenderingPlayerMarker active = _state.Fielders[activeIndex];
-                active.Position = Lerp(active.Position, _ballTarget, 0.055f);
+                _throwProgress = Math.Min(1f, _throwProgress + ThrowProgressPerTick);
+                _state.BallPosition = Lerp(_throwStart, _throwTarget, PhysicalTravelProgress(_throwProgress, 0.04f));
+                _state.BallHeight = BallHeightForFlight(GameplayBallFlightType.Throw, _throwProgress);
+                _state.BallTrail = Math.Max(0.08f, 0.72f * (1f - _throwProgress));
+                _state.CameraFocus = _state.BallPosition;
+                if (_throwProgress < 1f)
+                    return;
+                _throwPresentationActive = false;
             }
+            else
+            {
+                _ballProgress = Math.Min(1f, _ballProgress + BallInPlayProgressPerTick);
+                _state.AnimationProgress = _ballProgress;
+                _state.BallPosition = Lerp(_ballStart, _ballTarget, PhysicalTravelProgress(_ballProgress, 0.08f));
+                _state.BallHeight = BallHeightForFlight(_state.BallFlightType, _ballProgress);
+                _state.BallTrail = Math.Max(0f, 1f - _ballProgress);
+                _state.CameraFocus = _state.BallPosition;
 
-            if (_ballProgress < 1f)
-                return;
+                if (_state.Fielders.Count > 0)
+                {
+                    int activeIndex = Math.Clamp(_state.ActiveFielderIndex, 0, _state.Fielders.Count - 1);
+                    GameplayRenderingPlayerMarker active = _state.Fielders[activeIndex];
+                    float pursuit = HumanControlsFieldingTeam() ? 0.022f : 0.055f;
+                    active.Position = Lerp(active.Position, _ballTarget, pursuit);
+                }
+
+                if (_ballProgress < 1f)
+                    return;
+                if (TryStartThrowPresentation())
+                    return;
+            }
 
             int adjustment = CurrentPitcherPerformanceAdjustmentPercent();
             SharedBattedBallResultType outcome = _pendingBattedBallResult ??
@@ -5588,7 +6084,7 @@ namespace StandaloneBaseball
                     {
                         StopBallInPlayMusic();
                         _state.Phase = GameplayRenderingPhase.DeadBall;
-                        _state.BallTrail = 0f;
+                        CompleteBallPresentationVisuals();
                         ResetStrategyCalls();
                         PlayAfterPitchRunnerPromptIfNeeded();
                         return;
@@ -5597,7 +6093,7 @@ namespace StandaloneBaseball
                     {
                         StopBallInPlayMusic();
                         _state.Phase = GameplayRenderingPhase.DeadBall;
-                        _state.BallTrail = 0f;
+                        CompleteBallPresentationVisuals();
                         ResetStrategyCalls();
                         PlayAfterPitchRunnerPromptIfNeeded();
                         return;
@@ -5609,9 +6105,70 @@ namespace StandaloneBaseball
 
             StopBallInPlayMusic();
             _state.Phase = GameplayRenderingPhase.DeadBall;
-            _state.BallTrail = 0f;
+            CompleteBallPresentationVisuals();
             ResetStrategyCalls();
             PlayAfterPitchRunnerPromptIfNeeded();
+        }
+
+        private void CompleteBallPresentationVisuals()
+        {
+            _state.BallTrail = 0f;
+            _state.BallHeight = 0f;
+            _state.BallFlightType = GameplayBallFlightType.None;
+            _state.CameraPhase = GameplayCameraPhase.ClosePlay;
+            _state.CameraFocus = _state.BallPosition;
+            _throwPresentationActive = false;
+            _requestedThrowBase = null;
+            _userAdvanceRunners = false;
+            _userHoldRunners = false;
+        }
+
+        private bool TryStartThrowPresentation()
+        {
+            if (!_pendingBattedBallResult.HasValue || _state.Fielders.Count == 0)
+                return false;
+
+            SharedBattedBallResultType result = _pendingBattedBallResult.Value;
+            int index = Math.Clamp(_state.ActiveFielderIndex, 0, _state.Fielders.Count - 1);
+            GameplayRenderingPlayerMarker fielder = _state.Fielders[index];
+            bool infieldOut = result == SharedBattedBallResultType.Out &&
+                _state.BallFlightType == GameplayBallFlightType.GroundBall &&
+                !string.Equals(fielder.Label, "1B", StringComparison.OrdinalIgnoreCase);
+            bool hitOrError = result == SharedBattedBallResultType.Single ||
+                result == SharedBattedBallResultType.Double ||
+                result == SharedBattedBallResultType.Triple ||
+                result == SharedBattedBallResultType.Error;
+            if (!infieldOut && !hitOrError)
+                return false;
+
+            GameplayBase target = _requestedThrowBase ?? DefaultThrowTarget(result);
+            _throwStart = fielder.Position;
+            _throwTarget = WorldPositionForBase(target);
+            if (DistanceSquared(_throwStart, _throwTarget) < 0.0025f)
+                return false;
+
+            _throwProgress = 0f;
+            _throwPresentationActive = true;
+            _state.BallPosition = _throwStart;
+            _state.ThrowTarget = _throwTarget;
+            _state.BallFlightType = GameplayBallFlightType.Throw;
+            _state.BallHeight = 0f;
+            _state.BallTrail = 0.72f;
+            _state.CameraPhase = GameplayCameraPhase.ThrowToBase;
+            _state.CameraFocus = Lerp(_throwStart, _throwTarget, 0.5f);
+            _state.ModeLabel = "Throw to " + target;
+            return true;
+        }
+
+        private static GameplayBase DefaultThrowTarget(SharedBattedBallResultType result)
+        {
+            return result switch
+            {
+                SharedBattedBallResultType.Single => GameplayBase.Second,
+                SharedBattedBallResultType.Double => GameplayBase.Third,
+                SharedBattedBallResultType.Triple => GameplayBase.Home,
+                _ => GameplayBase.First
+            };
         }
 
         private bool TryResolveLiveDoublePlay(GameplayRenderingPlayerMarker? fielder)

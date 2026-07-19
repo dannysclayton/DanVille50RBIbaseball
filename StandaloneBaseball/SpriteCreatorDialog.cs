@@ -174,7 +174,8 @@ namespace StandaloneBaseball
                 Team = _team,
                 Player = SavedForPlayer ? _player : null,
                 SourceImagePaths = _sourcePaths.ToArray(),
-                Label = SavedForPlayer ? _player?.Name ?? "" : _team.DisplayName
+                Label = SavedForPlayer ? _player?.Name ?? "" : _team.DisplayName,
+                CleanGameplayFrames = true
             };
         }
 

@@ -15,6 +15,32 @@ namespace StandaloneBaseball
         DeadBall
     }
 
+    internal enum GameplayCameraPhase
+    {
+        AtBat,
+        BallTracking,
+        ThrowToBase,
+        ClosePlay
+    }
+
+    internal enum GameplayBallFlightType
+    {
+        None,
+        Pitch,
+        GroundBall,
+        LineDrive,
+        FlyBall,
+        HomeRun,
+        Throw
+    }
+
+    internal enum GameplayPresentationKind
+    {
+        None,
+        Steal,
+        Strikeout
+    }
+
     internal sealed class GameplayRenderingPlayerMarker
     {
         public string Label { get; set; } = "";
@@ -84,9 +110,21 @@ namespace StandaloneBaseball
         public Dictionary<Guid, int> PinchUseCounts { get; } = new Dictionary<Guid, int>();
         public List<Guid> RemovedPlayerIds { get; } = new List<Guid>();
         public string ModeLabel { get; set; } = "Ready";
+        public string PitchTypeLabel { get; set; } = "Fastball";
         public BaseballFieldPreset FieldPreset { get; set; } = BaseballFieldPresets.Default;
         public GameplayRenderingPhase Phase { get; set; } = GameplayRenderingPhase.Ready;
+        public GameplayCameraPhase CameraPhase { get; set; } = GameplayCameraPhase.AtBat;
+        public GameplayBallFlightType BallFlightType { get; set; } = GameplayBallFlightType.None;
+        public GameplayPresentationKind PresentationKind { get; set; } = GameplayPresentationKind.None;
+        public float PresentationProgress { get; set; }
+        public int PresentationFromBase { get; set; }
+        public int PresentationTargetBase { get; set; }
+        public bool PresentationSuccessful { get; set; }
+        public string PresentationVariant { get; set; } = "";
         public PointF BallPosition { get; set; } = new PointF(0.5f, 0.62f);
+        public PointF CameraFocus { get; set; } = new PointF(0.5f, 0.70f);
+        public PointF ThrowTarget { get; set; } = new PointF(0.64f, 0.72f);
+        public int BatterTargetBase { get; set; } = 1;
         public float BallHeight { get; set; }
         public bool BallVisible { get; set; } = true;
         public float BallTrail { get; set; }
@@ -191,7 +229,7 @@ namespace StandaloneBaseball
             string[] labels = { "C", "P", "1B", "2B", "SS", "3B", "LF", "CF", "RF" };
             PointF[] positions =
             {
-                new PointF(0.5f, 0.84f),
+                new PointF(0.5f, 0.90f),
                 new PointF(0.5f, 0.62f),
                 new PointF(0.68f, 0.70f),
                 new PointF(0.59f, 0.62f),

@@ -62,6 +62,15 @@ function Get-SafeArtifactPath([string]$Path, [string]$Name) {
 
 function Reset-ArtifactDirectory([string]$Path) {
     if (Test-Path -LiteralPath $Path) {
+        foreach ($executable in @(Get-ChildItem -LiteralPath $Path -File -Filter "*.exe" -ErrorAction SilentlyContinue)) {
+            try {
+                $stream = [IO.File]::Open($executable.FullName, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+                $stream.Dispose()
+            }
+            catch {
+                throw "Cannot replace the existing public artifact because '$($executable.FullName)' is in use. Close the running game and publish again. The existing artifact was not modified."
+            }
+        }
         Remove-Item -LiteralPath $Path -Recurse -Force
     }
     New-Item -ItemType Directory -Force -Path $Path | Out-Null
@@ -176,7 +185,15 @@ function Assert-PublicReleaseArtifact([string]$Root) {
         "Assets\Trophies\baseball-mvp-trophy-template.jpg",
         "Assets\Loading Screens\season_opening_baseball_is_back.jpg",
         "Assets\Loading Screens\season_opening_danville50.png",
-        "Assets\Loading Screens\doubleheader_game_two.jpg"
+        "Assets\Loading Screens\doubleheader_game_two.jpg",
+        "Assets\Gameplay3D\index.html",
+        "Assets\Gameplay3D\baseball-character-rig.js",
+        "Assets\Gameplay3D\gameplay3d.js",
+        "Assets\Gameplay3D\addons\loaders\GLTFLoader.js",
+        "Assets\Gameplay3D\addons\utils\SkeletonUtils.js",
+        "Assets\Gameplay3D\models\player_base.glb",
+        "Assets\Gameplay3D\models\player_run.glb",
+        "Assets\Gameplay3D\models\player_walk.glb"
     )
     $missing = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Root $_) -PathType Leaf) })
     if ($missing.Count -gt 0) {
@@ -317,6 +334,9 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Public publish failed with exit code $LASTEXITCODE."
     }
+
+    Get-ChildItem -LiteralPath $publishPath -File -Filter "Microsoft.Web.WebView2*.xml" -ErrorAction SilentlyContinue |
+        Remove-Item -Force
 
     Assert-PublicReleaseArtifact $publishPath
 

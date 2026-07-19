@@ -4,7 +4,10 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Text.Json;
 using System.Windows.Forms;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.WinForms;
 
 #nullable enable annotations
 
@@ -19,6 +22,15 @@ namespace StandaloneBaseball
 
         private GameplayRenderingGameState? _state;
         private readonly Dictionary<string, Image?> _spriteCache = new Dictionary<string, Image?>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _webImageCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private RectangleF _cameraViewport = new RectangleF(0.14f, 0.42f, 0.72f, 0.53f);
+        private bool _cameraInitialized;
+        private WebView2? _threeDimensionalView;
+        private bool _threeDimensionalReady;
+        private bool _threeDimensionalPushActive;
+        private bool _threeDimensionalPushQueued;
+        private string _lastThreeDimensionalLogoPath = "";
+        private string _lastThreeDimensionalScoreboardBackgroundPath = "";
 
         public GameplayRenderingSurface()
         {
@@ -27,10 +39,249 @@ namespace StandaloneBaseball
             BackColor = Color.FromArgb(25, 95, 54);
         }
 
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            if (!DesignMode && Environment.GetEnvironmentVariable("DRBI_FORCE_2D") != "1")
+                BeginInvoke(new Action(async () => await InitializeThreeDimensionalRendererAsync()));
+        }
+
+        private async System.Threading.Tasks.Task InitializeThreeDimensionalRendererAsync()
+        {
+            string assetFolder = Path.Combine(AppContext.BaseDirectory, "Assets", "Gameplay3D");
+            string page = Path.Combine(assetFolder, "index.html");
+            if (!Directory.Exists(assetFolder) || !File.Exists(page) || IsDisposed)
+                return;
+
+            try
+            {
+                string userData = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "DanVille50", "DansRBIBaseball2026", "WebView2");
+                Directory.CreateDirectory(userData);
+                _threeDimensionalView = new WebView2
+                {
+                    Dock = DockStyle.Fill,
+                    DefaultBackgroundColor = Color.FromArgb(7, 19, 27),
+                    CreationProperties = new CoreWebView2CreationProperties { UserDataFolder = userData }
+                };
+                Controls.Add(_threeDimensionalView);
+                _threeDimensionalView.BringToFront();
+                await _threeDimensionalView.EnsureCoreWebView2Async();
+                _threeDimensionalView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "drbi.game", assetFolder, CoreWebView2HostResourceAccessKind.DenyCors);
+                _threeDimensionalView.CoreWebView2.WebMessageReceived += (_, args) =>
+                {
+                    if (args.WebMessageAsJson.IndexOf("ready", StringComparison.OrdinalIgnoreCase) < 0)
+                        return;
+                    _lastThreeDimensionalLogoPath = "";
+                    _lastThreeDimensionalScoreboardBackgroundPath = "";
+                    _threeDimensionalReady = true;
+                    QueueThreeDimensionalStatePush();
+                };
+                _threeDimensionalView.CoreWebView2.Navigate("https://drbi.game/index.html");
+            }
+            catch
+            {
+                _threeDimensionalReady = false;
+                if (_threeDimensionalView != null)
+                {
+                    Controls.Remove(_threeDimensionalView);
+                    _threeDimensionalView.Dispose();
+                    _threeDimensionalView = null;
+                }
+            }
+        }
+
         public void SetState(GameplayRenderingGameState state)
         {
             _state = state;
             Invalidate();
+        }
+
+        public new void Invalidate()
+        {
+            base.Invalidate();
+            QueueThreeDimensionalStatePush();
+        }
+
+        private async void QueueThreeDimensionalStatePush()
+        {
+            if (!_threeDimensionalReady || _threeDimensionalView?.CoreWebView2 == null || _state == null || IsDisposed)
+                return;
+            if (_threeDimensionalPushActive)
+            {
+                _threeDimensionalPushQueued = true;
+                return;
+            }
+
+            _threeDimensionalPushActive = true;
+            try
+            {
+                do
+                {
+                    _threeDimensionalPushQueued = false;
+                    string logoPath = _state.HomeLogoPath ?? "";
+                    string scoreboardBackgroundPath = _state.HomeTeam?.ScoreboardTemplate?.BackgroundAssetPath ?? "";
+                    string? logoDataUri = string.Equals(logoPath, _lastThreeDimensionalLogoPath, StringComparison.OrdinalIgnoreCase)
+                        ? null : CachedWebImageDataUri(logoPath);
+                    string? scoreboardBackgroundDataUri = string.Equals(scoreboardBackgroundPath, _lastThreeDimensionalScoreboardBackgroundPath, StringComparison.OrdinalIgnoreCase)
+                        ? null : CachedWebImageDataUri(scoreboardBackgroundPath);
+                    _lastThreeDimensionalLogoPath = logoPath;
+                    _lastThreeDimensionalScoreboardBackgroundPath = scoreboardBackgroundPath;
+                    string payload = BuildThreeDimensionalStatePayload(_state, logoDataUri, scoreboardBackgroundDataUri);
+                    await _threeDimensionalView.CoreWebView2.ExecuteScriptAsync(
+                        "window.DRBI && window.DRBI.updateState(" + payload + ");");
+                }
+                while (_threeDimensionalPushQueued && !IsDisposed);
+            }
+            catch
+            {
+                _threeDimensionalReady = false;
+                _threeDimensionalView.Visible = false;
+            }
+            finally
+            {
+                _threeDimensionalPushActive = false;
+            }
+        }
+
+        internal static string BuildThreeDimensionalStatePayload(
+            GameplayRenderingGameState state,
+            string? homeLogoDataUri = "",
+            string? scoreboardBackgroundDataUri = "")
+        {
+            Player? batter = state.CurrentBatterPlayer();
+            Player? pitcher = state.CurrentPitcherPlayer();
+            Team? offense = state.BattingTeam;
+            Team? defense = state.FieldingTeam;
+            TeamUniformSet? offenseUniform = state.UniformForTeam(offense);
+            TeamUniformSet? defenseUniform = state.UniformForTeam(defense);
+            BaseballFieldPreset field = state.FieldPreset ?? BaseballFieldPresets.Default;
+            TeamScoreboardTemplate? scoreboard = state.HomeTeam?.ScoreboardTemplate;
+            var payload = new
+            {
+                phase = state.Phase.ToString(),
+                cameraPhase = state.CameraPhase.ToString(),
+                ballFlightType = state.BallFlightType.ToString(),
+                animationProgress = state.AnimationProgress,
+                presentationKind = state.PresentationKind.ToString(),
+                presentationProgress = state.PresentationProgress,
+                presentationFromBase = state.PresentationFromBase,
+                presentationTargetBase = state.PresentationTargetBase,
+                presentationSuccessful = state.PresentationSuccessful,
+                presentationVariant = state.PresentationVariant,
+                awayName = state.AwayName,
+                homeName = state.HomeName,
+                awayScore = state.AwayScore,
+                homeScore = state.HomeScore,
+                inning = state.Inning,
+                topHalf = state.TopHalf,
+                balls = state.Balls,
+                strikes = state.Strikes,
+                outs = state.Outs,
+                modeLabel = state.ModeLabel,
+                pitchType = state.PitchTypeLabel,
+                batterName = batter?.Name ?? "Batter",
+                pitcherName = pitcher?.Name ?? "Pitcher",
+                batterBats = batter?.Bats ?? "R",
+                pitcherThrows = pitcher?.Throws ?? "R",
+                batterTargetBase = state.BatterTargetBase,
+                offensePrimary = HtmlColor(offenseUniform?.JerseyArgb ?? offense?.PrimaryArgb ?? state.OffenseColor.ToArgb()),
+                offenseSecondary = HtmlColor(offenseUniform?.PantsArgb ?? Color.White.ToArgb()),
+                offenseCap = HtmlColor(offenseUniform?.CapHelmetArgb ?? offense?.SecondaryArgb ?? Color.White.ToArgb()),
+                defensePrimary = HtmlColor(defenseUniform?.JerseyArgb ?? defense?.PrimaryArgb ?? state.DefenseColor.ToArgb()),
+                defenseSecondary = HtmlColor(defenseUniform?.PantsArgb ?? Color.White.ToArgb()),
+                defenseCap = HtmlColor(defenseUniform?.CapHelmetArgb ?? defense?.SecondaryArgb ?? Color.White.ToArgb()),
+                field = new
+                {
+                    name = string.IsNullOrWhiteSpace(field.Name) ? "Baseball Field" : field.Name,
+                    grass = HtmlColor(field.GrassColor.ToArgb()),
+                    darkGrass = HtmlColor(field.DarkGrassColor.ToArgb()),
+                    infield = HtmlColor(field.InfieldColor.ToArgb()),
+                    clay = HtmlColor(field.ClayColor.ToArgb()),
+                    wall = HtmlColor(field.WallColor.ToArgb()),
+                    seats = HtmlColor(field.SeatColor.ToArgb()),
+                    structure = HtmlColor(field.StructureColor.ToArgb()),
+                    accent = HtmlColor(field.AccentColor.ToArgb())
+                },
+                scoreboard = new
+                {
+                    enabled = scoreboard?.Enabled == true,
+                    schoolName = string.IsNullOrWhiteSpace(scoreboard?.SchoolNameText) ? state.HomeName : scoreboard!.SchoolNameText,
+                    abbreviation = string.IsNullOrWhiteSpace(scoreboard?.PreferredAbbreviation) ? state.HomeName : scoreboard!.PreferredAbbreviation,
+                    mascot = string.IsNullOrWhiteSpace(scoreboard?.MascotText) ? state.HomeTeam?.Nickname ?? "" : scoreboard!.MascotText,
+                    layout = scoreboard?.BoardColorLayout.ToString() ?? ScoreboardBoardColorLayout.Solid.ToString(),
+                    color1 = HtmlColor(scoreboard?.BoardArgb ?? unchecked((int)0xFF113655)),
+                    color2 = HtmlColor(scoreboard?.BoardSecondArgb ?? unchecked((int)0xFF113655)),
+                    color3 = HtmlColor(scoreboard?.BoardThirdArgb ?? unchecked((int)0xFF071D34)),
+                    color4 = HtmlColor(scoreboard?.BoardFourthArgb ?? unchecked((int)0xFF071D34)),
+                    accent = HtmlColor(scoreboard?.AccentArgb ?? unchecked((int)0xFFCBE0EF)),
+                    text = HtmlColor(scoreboard?.TextArgb ?? Color.White.ToArgb()),
+                    adStrip = HtmlColor(scoreboard?.AdStripArgb ?? unchecked((int)0xFF161616)),
+                    logoDataUri = homeLogoDataUri,
+                    backgroundDataUri = scoreboardBackgroundDataUri,
+                    ads = scoreboard?.Ads?.Where(ad => !string.IsNullOrWhiteSpace(ad)).Select(ad => ad.Trim()).Take(8).ToArray()
+                        ?? Array.Empty<string>()
+                },
+                bases = state.Bases.Select(baseState => baseState.Occupied).ToArray(),
+                ball = new
+                {
+                    x = state.BallPosition.X,
+                    y = state.BallPosition.Y,
+                    z = state.BallHeight,
+                    visible = state.BallVisible
+                },
+                activeFielderIndex = state.ActiveFielderIndex,
+                fielders = state.Fielders.Select(marker => new
+                {
+                    label = marker.Label,
+                    name = marker.Player?.Name ?? marker.Detail,
+                    throws = marker.Player?.Throws ?? "R",
+                    x = marker.Position.X,
+                    y = marker.Position.Y
+                }).ToArray()
+            };
+            return JsonSerializer.Serialize(payload);
+        }
+
+        private string CachedWebImageDataUri(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return "";
+            string resolved = Path.IsPathRooted(path)
+                ? path
+                : Path.Combine(AppContext.BaseDirectory, path.Replace('/', Path.DirectorySeparatorChar));
+            if (_webImageCache.TryGetValue(resolved, out string? cached))
+                return cached;
+            if (!File.Exists(resolved))
+                return _webImageCache[resolved] = "";
+            if (new FileInfo(resolved).Length > 25L * 1024L * 1024L)
+                return _webImageCache[resolved] = "";
+
+            string extension = Path.GetExtension(resolved).ToLowerInvariant();
+            string mime = extension switch
+            {
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                ".bmp" => "image/bmp",
+                _ => "image/jpeg"
+            };
+            try
+            {
+                return _webImageCache[resolved] = $"data:{mime};base64,{Convert.ToBase64String(File.ReadAllBytes(resolved))}";
+            }
+            catch
+            {
+                return _webImageCache[resolved] = "";
+            }
+        }
+
+        private static string HtmlColor(int argb)
+        {
+            Color color = Color.FromArgb(argb);
+            return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -48,7 +299,11 @@ namespace StandaloneBaseball
             BaseballFieldPreset preset = _state?.FieldPreset ?? BaseballFieldPresets.Default;
             bool photoBackground = DrawBackdrop(g, bounds, preset);
 
-            Rectangle field = GetFieldBounds(bounds, _state);
+            Rectangle stage = GetStageBounds(bounds, _state);
+            UpdateCamera(_state);
+            Rectangle field = ProjectFieldBounds(stage, _cameraViewport);
+            GraphicsState fieldState = g.Save();
+            g.SetClip(stage);
             DrawField(g, field, preset, photoBackground);
             DrawFieldOverlays(g, field, preset);
 
@@ -59,21 +314,93 @@ namespace StandaloneBaseball
                 DrawFielders(g, field, _state);
                 DrawReplayActors(g, field, _state);
                 DrawBall(g, field, _state);
+            }
+            g.Restore(fieldState);
+
+            if (_state != null)
+            {
                 DrawHud(g, bounds, _state);
                 DrawMode(g, bounds, _state);
             }
         }
 
-        private static Rectangle GetFieldBounds(Rectangle bounds, GameplayRenderingGameState? state)
+        private static Rectangle GetStageBounds(Rectangle bounds, GameplayRenderingGameState? state)
         {
             int hudHeight = GameplayScoreboardPresentation.HudHeight(bounds, state);
-            int sidePadding = Math.Max(24, bounds.Width / 30);
-            int bottomPadding = 24;
+            int sidePadding = Math.Max(12, bounds.Width / 80);
+            int bottomPadding = 12;
             return new Rectangle(
                 bounds.Left + sidePadding,
                 bounds.Top + hudHeight,
                 Math.Max(240, bounds.Width - sidePadding * 2),
                 Math.Max(240, bounds.Height - hudHeight - bottomPadding));
+        }
+
+        private void UpdateCamera(GameplayRenderingGameState? state)
+        {
+            RectangleF target = CameraViewportFor(state);
+            if (!_cameraInitialized)
+            {
+                _cameraViewport = target;
+                _cameraInitialized = true;
+                return;
+            }
+
+            const float easing = 0.18f;
+            _cameraViewport = new RectangleF(
+                Lerp(_cameraViewport.X, target.X, easing),
+                Lerp(_cameraViewport.Y, target.Y, easing),
+                Lerp(_cameraViewport.Width, target.Width, easing),
+                Lerp(_cameraViewport.Height, target.Height, easing));
+        }
+
+        internal static RectangleF CameraViewportFor(GameplayRenderingGameState? state)
+        {
+            if (state == null || state.CameraPhase == GameplayCameraPhase.AtBat)
+                return new RectangleF(0.14f, 0.42f, 0.72f, 0.53f);
+
+            PointF focus = state.CameraFocus;
+            if (state.CameraPhase == GameplayCameraPhase.BallTracking)
+            {
+                GameplayRenderingPlayerMarker? fielder = state.Fielders.Count == 0
+                    ? null
+                    : state.Fielders[Math.Clamp(state.ActiveFielderIndex, 0, state.Fielders.Count - 1)];
+                PointF other = fielder?.Position ?? state.BallPosition;
+                focus = new PointF(
+                    (state.BallPosition.X * 0.62f) + (other.X * 0.38f),
+                    (state.BallPosition.Y * 0.62f) + (other.Y * 0.38f));
+                return CenteredViewport(focus, 0.76f, 0.68f);
+            }
+
+            if (state.CameraPhase == GameplayCameraPhase.ThrowToBase)
+            {
+                focus = new PointF(
+                    (state.BallPosition.X + state.ThrowTarget.X) / 2f,
+                    (state.BallPosition.Y + state.ThrowTarget.Y) / 2f);
+                return CenteredViewport(focus, 0.60f, 0.54f);
+            }
+
+            return CenteredViewport(focus, 0.50f, 0.45f);
+        }
+
+        private static RectangleF CenteredViewport(PointF focus, float width, float height)
+        {
+            float x = Math.Clamp(focus.X - width / 2f, 0f, 1f - width);
+            float y = Math.Clamp(focus.Y - height / 2f, 0f, 1f - height);
+            return new RectangleF(x, y, width, height);
+        }
+
+        internal static Rectangle ProjectFieldBounds(Rectangle stage, RectangleF viewport)
+        {
+            float width = Math.Max(0.05f, viewport.Width);
+            float height = Math.Max(0.05f, viewport.Height);
+            int projectedWidth = (int)Math.Ceiling(stage.Width / width);
+            int projectedHeight = (int)Math.Ceiling(stage.Height / height);
+            return new Rectangle(
+                stage.Left - (int)Math.Round(viewport.X * projectedWidth),
+                stage.Top - (int)Math.Round(viewport.Y * projectedHeight),
+                projectedWidth,
+                projectedHeight);
         }
 
         private bool DrawBackdrop(Graphics g, Rectangle bounds, BaseballFieldPreset preset)
@@ -454,7 +781,7 @@ namespace StandaloneBaseball
                         PointF next = i == 0 ? bases[1] : i == 1 ? bases[2] : Map(field, 0.5f, 0.84f);
                         runnerPoint = Lerp(runnerPoint, next, Math.Min(0.88f, state.AnimationProgress * 0.9f));
                     }
-                    DrawSpriteOrMarker(g, runnerPoint.X, runnerPoint.Y - 24, 12, state.Bases[i].RunnerColor, "R", true,
+                    DrawSpriteOrMarker(g, runnerPoint.X, runnerPoint.Y, 12, state.Bases[i].RunnerColor, "R", true,
                         state.Bases[i].Player, state.Bases[i].Team,
                         state.Phase == GameplayRenderingPhase.BallInPlay ? 6 : 14);
                 }
@@ -468,17 +795,18 @@ namespace StandaloneBaseball
                 return;
 
             bool leftHanded = string.Equals(batter.Bats, "L", StringComparison.OrdinalIgnoreCase);
-            PointF home = Map(field, leftHanded ? 0.535f : 0.465f, 0.835f);
+            PointF home = Map(field, leftHanded ? 0.56f : 0.44f, 0.825f);
             int frame = 4;
             if (state.Phase == GameplayRenderingPhase.Pitching && state.BallPosition.Y >= 0.73f)
                 frame = 5;
             else if (state.Phase == GameplayRenderingPhase.BallInPlay)
             {
-                home = Lerp(home, Map(field, 0.64f, 0.72f), Math.Min(0.92f, state.AnimationProgress));
+                PointF runnerWorld = RunnerPathPoint(Math.Min(0.98f, state.AnimationProgress), state.BatterTargetBase);
+                home = Map(field, runnerWorld.X, runnerWorld.Y);
                 frame = 6;
             }
 
-            DrawSpriteOrMarker(g, home.X, home.Y - 24, 14, state.OffenseColor, "B", true,
+            DrawSpriteOrMarker(g, home.X, home.Y, 14, state.OffenseColor, "B", true,
                 batter, state.BattingTeam, frame);
         }
 
@@ -509,7 +837,8 @@ namespace StandaloneBaseball
             if (!state.BallVisible)
                 return;
 
-            PointF ball = Map(field, state.BallPosition.X, state.BallPosition.Y);
+            PointF ground = Map(field, state.BallPosition.X, state.BallPosition.Y);
+            PointF ball = ground;
             float lift = Math.Clamp(state.BallHeight, 0f, 1f) * Math.Max(20f, field.Height * 0.16f);
             ball.Y -= lift;
             if (state.BallTrail > 0.01f)
@@ -523,7 +852,8 @@ namespace StandaloneBaseball
 
             float radius = 6f + Math.Clamp(state.BallHeight, 0f, 1f) * 3f;
             using var shadow = new SolidBrush(Color.FromArgb(90, Color.Black));
-            g.FillEllipse(shadow, ball.X - radius + 1, ball.Y + radius - 2, radius * 2, Math.Max(5f, radius));
+            float shadowWidth = radius * (2f - Math.Clamp(state.BallHeight, 0f, 1f) * 0.65f);
+            g.FillEllipse(shadow, ground.X - shadowWidth / 2f, ground.Y - 2, shadowWidth, Math.Max(4f, radius * 0.65f));
 
             using var brush = new SolidBrush(Color.White);
             using var seam = new Pen(Color.FromArgb(200, 45, 45), 1.2f);
@@ -602,15 +932,16 @@ namespace StandaloneBaseball
 
         private static void DrawMarker(Graphics g, float x, float y, float radius, Color color, string label, bool highlighted)
         {
+            float centerY = y - radius;
             using var shadow = new SolidBrush(Color.FromArgb(95, Color.Black));
-            g.FillEllipse(shadow, x - radius + 2, y - radius + 3, radius * 2, radius * 2);
+            g.FillEllipse(shadow, x - radius, y - 5, radius * 2, 8);
 
             using var brush = new SolidBrush(color);
             using var ring = new Pen(highlighted ? Color.White : Color.FromArgb(215, 245, 245, 245), highlighted ? 3f : 1.5f);
-            g.FillEllipse(brush, x - radius, y - radius, radius * 2, radius * 2);
-            g.DrawEllipse(ring, x - radius, y - radius, radius * 2, radius * 2);
+            g.FillEllipse(brush, x - radius, centerY - radius, radius * 2, radius * 2);
+            g.DrawEllipse(ring, x - radius, centerY - radius, radius * 2, radius * 2);
 
-            TextRenderer.DrawText(g, label, MarkerFont, new Rectangle((int)(x - radius), (int)(y - 8), (int)(radius * 2), 16), Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(g, label, MarkerFont, new Rectangle((int)(x - radius), (int)(centerY - 8), (int)(radius * 2), 16), Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 
         private void DrawSpriteOrMarker(Graphics g, float x, float y, float radius, Color color, string label,
@@ -634,23 +965,26 @@ namespace StandaloneBaseball
             int frameCount = Math.Max(1, (sheet.Width / frameWidth) * (sheet.Height / frameHeight));
             frameIndex = Math.Clamp(frameIndex, 0, frameCount - 1);
             int columns = Math.Max(1, sheet.Width / frameWidth);
-            float drawSize = highlighted ? 72f : 62f;
+            float cameraScale = Math.Clamp((float)Math.Sqrt(1f / Math.Max(0.35f, _cameraViewport.Width)), 1f, 1.45f);
+            float depthScale = Math.Clamp(0.88f + (y / Math.Max(1f, ClientSize.Height)) * 0.18f, 0.88f, 1.08f);
+            float drawSize = (highlighted ? 78f : 68f) * cameraScale * depthScale;
             Rectangle src = new Rectangle((frameIndex % columns) * frameWidth, (frameIndex / columns) * frameHeight, frameWidth, frameHeight);
-            RectangleF dest = new RectangleF(x - drawSize / 2f, y - drawSize / 2f, drawSize, drawSize);
+            float drawWidth = drawSize * frameWidth / Math.Max(1f, frameHeight);
+            RectangleF dest = new RectangleF(x - drawWidth / 2f, y - drawSize, drawWidth, drawSize);
 
             using var shadow = new SolidBrush(Color.FromArgb(100, Color.Black));
-            g.FillEllipse(shadow, x - drawSize / 2f + 3, y + drawSize / 2f - 8, drawSize, 12);
+            g.FillEllipse(shadow, x - drawWidth * 0.42f, y - 8, drawWidth * 0.84f, 12);
             g.DrawImage(sheet, dest, src, GraphicsUnit.Pixel);
 
             if (highlighted)
             {
                 using var ring = new Pen(Color.White, 3f);
-                g.DrawEllipse(ring, x - drawSize / 2f, y - drawSize / 2f, drawSize, drawSize);
+                g.DrawEllipse(ring, x - drawWidth * 0.34f, y - 10, drawWidth * 0.68f, 13);
             }
 
             if (!string.IsNullOrWhiteSpace(label) && label != "B" && label != "R")
             {
-                Rectangle badge = new Rectangle((int)x - 18, (int)(y + drawSize / 2f - 4), 36, 18);
+                Rectangle badge = new Rectangle((int)x - 18, (int)y - 24, 36, 18);
                 using var badgeFill = new SolidBrush(Color.FromArgb(210, color));
                 g.FillEllipse(badgeFill, badge);
                 TextRenderer.DrawText(g, label, MarkerFont, badge, Color.White,
@@ -677,16 +1011,14 @@ namespace StandaloneBaseball
             catch
             {
                 _spriteCache[path] = null;
-                return null;
+                return LoadGeneratedSpriteSheet(player, team);
             }
         }
 
         private Image? LoadGeneratedSpriteSheet(Player? player, Team? team)
         {
-            if (team == null)
-                return null;
-            string key = "generated:" + team.Id.ToString("N") + ":" + (player?.Id.ToString("N") ?? "generic") + ":" +
-                team.PrimaryArgb + ":" + team.SecondaryArgb;
+            string key = "generated:" + (team?.Id.ToString("N") ?? "neutral") + ":" + (player?.Id.ToString("N") ?? "generic") + ":" +
+                (team?.PrimaryArgb ?? 0) + ":" + (team?.SecondaryArgb ?? 0);
             if (_spriteCache.TryGetValue(key, out Image? cached))
                 return cached;
 
@@ -696,7 +1028,7 @@ namespace StandaloneBaseball
                 {
                     Team = team,
                     Player = player,
-                    Label = player?.Name ?? team.ScoreboardName,
+                    Label = player?.Name ?? team?.ScoreboardName ?? "Player",
                     CleanGameplayFrames = true
                 });
                 _spriteCache[key] = generated;
@@ -715,6 +1047,8 @@ namespace StandaloneBaseball
                 return state.AnimationProgress < 0.45f ? 9 : 8;
             if (marker.Label == "C")
                 return 12;
+            if (state.BallFlightType == GameplayBallFlightType.Throw && index == state.ActiveFielderIndex)
+                return 2;
             if (state.Phase == GameplayRenderingPhase.BallInPlay && index == state.ActiveFielderIndex)
                 return state.AnimationProgress < 0.78f ? 1 : 3;
             return 0;
@@ -741,5 +1075,25 @@ namespace StandaloneBaseball
 
         private static PointF Lerp(PointF start, PointF end, float progress)
             => new PointF(start.X + (end.X - start.X) * progress, start.Y + (end.Y - start.Y) * progress);
+
+        private static float Lerp(float start, float end, float progress)
+            => start + (end - start) * progress;
+
+        internal static PointF RunnerPathPoint(float progress, int targetBase)
+        {
+            PointF[] path =
+            {
+                new PointF(0.5f, 0.86f),
+                new PointF(0.64f, 0.72f),
+                new PointF(0.5f, 0.58f),
+                new PointF(0.36f, 0.72f),
+                new PointF(0.5f, 0.86f)
+            };
+            int segments = Math.Clamp(targetBase, 1, 4);
+            float scaled = Math.Clamp(progress, 0f, 1f) * segments;
+            int segment = Math.Min(segments - 1, (int)Math.Floor(scaled));
+            float local = Math.Clamp(scaled - segment, 0f, 1f);
+            return Lerp(path[segment], path[segment + 1], local);
+        }
     }
 }

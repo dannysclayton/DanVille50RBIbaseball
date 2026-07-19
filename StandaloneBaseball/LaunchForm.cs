@@ -53,13 +53,16 @@ namespace StandaloneBaseball
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            _launchSound.PlayLoop(LaunchSoundPlayer.FindLaunchLoop());
+            PresentationAudioCoordinator.StartExclusiveLoop(
+                _launchSound,
+                () => _launchSound.PlayLoop(LaunchSoundPlayer.FindLaunchLoop()));
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
+                PresentationAudioCoordinator.Stop(_launchSound);
                 _launchSound.Dispose();
                 _startSound.Dispose();
                 _launchImage?.Dispose();
@@ -100,7 +103,7 @@ namespace StandaloneBaseball
                 return;
             _starting = true;
             _startButton.Enabled = false;
-            _launchSound.Stop();
+            PresentationAudioCoordinator.Stop(_launchSound);
             _startSound.PlayOnce(LaunchSoundPlayer.FindStartSound());
             Hide();
             using (var loading = new LoadingTransitionForm())

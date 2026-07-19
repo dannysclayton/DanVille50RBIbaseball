@@ -48,7 +48,9 @@ namespace StandaloneBaseball
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            _menuMusic.PlayLoop(LaunchSoundPlayer.FindMenuLoop());
+            PresentationAudioCoordinator.StartExclusiveLoop(
+                _menuMusic,
+                () => _menuMusic.PlayLoop(LaunchSoundPlayer.FindMenuLoop()));
             _controllerTimer.Start();
         }
 
@@ -56,6 +58,7 @@ namespace StandaloneBaseball
         {
             if (disposing)
             {
+                PresentationAudioCoordinator.Stop(_menuMusic);
                 _menuMusic.Dispose();
                 _buttonSound.Dispose();
                 _controllerTimer?.Dispose();
@@ -258,7 +261,7 @@ namespace StandaloneBaseball
                 return;
             _launching = true;
             _controllerTimer.Stop();
-            _menuMusic.Stop();
+            PresentationAudioCoordinator.Stop(_menuMusic);
             _buttonSound.PlayOnce(LaunchSoundPlayer.FindMenuButtonSound());
             Hide();
 

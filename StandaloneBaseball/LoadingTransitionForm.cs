@@ -58,7 +58,9 @@ namespace StandaloneBaseball
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            _loadingSound.PlayLoop(LaunchSoundPlayer.FindLoadingLoop());
+            PresentationAudioCoordinator.StartExclusiveLoop(
+                _loadingSound,
+                () => _loadingSound.PlayLoop(LaunchSoundPlayer.FindLoadingLoop()));
             _timer.Start();
         }
 
@@ -67,6 +69,7 @@ namespace StandaloneBaseball
             if (disposing)
             {
                 _timer?.Dispose();
+                PresentationAudioCoordinator.Stop(_loadingSound);
                 _loadingSound.Dispose();
                 _loadingImage?.Dispose();
             }
@@ -106,7 +109,7 @@ namespace StandaloneBaseball
             if (next >= 100)
             {
                 _timer.Stop();
-                _loadingSound.Stop();
+                PresentationAudioCoordinator.Stop(_loadingSound);
                 DialogResult = DialogResult.OK;
                 Close();
             }
